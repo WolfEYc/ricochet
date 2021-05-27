@@ -27,3 +27,4 @@ Click the back arrow to go back to main menu.
 # Download and run
 
 Download the zip file for your operating system, extract, open, and double click the ricochet application file to run
+Linux version requires <a href="https://www.sfml-dev.org/tutorials/2.5/start-linux.php">SFML</a> to be installed on your system
