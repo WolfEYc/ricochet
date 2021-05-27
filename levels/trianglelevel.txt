@@ -1,0 +1,11 @@
+name
+trianglelevel
+center
+300,500
+walls
+565,437 347,196
+230,183 54,528
+targets
+83,279
+491,243
+274,42

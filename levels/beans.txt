@@ -1,0 +1,7 @@
+name
+beans
+center
+300,500
+walls
+183,173 227,394
+targets

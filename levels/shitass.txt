@@ -1,0 +1,8 @@
+name
+shitass
+center
+300,500
+walls
+107,226 402,222
+389,339 501,203
+targets

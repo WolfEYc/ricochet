@@ -1,0 +1,7 @@
+name
+burrito
+center
+300,500
+walls
+103,336 443,194
+targets
