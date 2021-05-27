@@ -1,0 +1,10 @@
+name
+movedcenter
+center
+431,167
+walls
+229,178 401,450
+514,297 530,86
+targets
+153,291
+555,500
