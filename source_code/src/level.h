@@ -3,6 +3,7 @@
 #include <SFML/Graphics.hpp>
 using namespace sf;
 
+//comment
 namespace fs = std::filesystem;
 
 using surface = std::pair<Vector2f,Vector2f>;
