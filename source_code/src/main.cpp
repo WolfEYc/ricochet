@@ -239,7 +239,7 @@ void calcShots(){
             clev.targets[i].setFillColor(Color::Black);
         }
         
-        unsigned hit = 69;
+        int hit = 69;
         bool done = 0;
 
         while(!done){

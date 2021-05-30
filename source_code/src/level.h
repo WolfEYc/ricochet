@@ -62,9 +62,9 @@ public:
         }    
     }
 
-    surface firstCollision (Vector2f a1, Vector2f a2, unsigned &prevhit){
+    surface firstCollision (Vector2f a1, Vector2f a2, int &prevhit){
         float closest_dist = 9999.f;
-        unsigned closest_index = 69;
+        int closest_index = 69;
         surface closest_reflector;
 
         for(unsigned w = 0; w < walls.size(); w++){
