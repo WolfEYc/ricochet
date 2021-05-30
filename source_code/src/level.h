@@ -1,6 +1,11 @@
 #include <bits/stdc++.h>
+#include <filesystem>
 #include <SFML/Graphics.hpp>
 using namespace sf;
+
+namespace fs = std::filesystem;
+
+using surface = std::pair<Vector2f,Vector2f>;
 
 class leveld
 {
@@ -133,7 +138,7 @@ public:
         levelfiles.clear();
     }
 
-    void initLevels(){    
+    void initLevels(unsigned sx, unsigned sy){
         VertexArray wall(LineStrip,2);
 
         leveld level1;
@@ -157,19 +162,19 @@ public:
 
         VertexArray leftwall(LineStrip,2);
         leftwall[0].position = Vector2f(0.1f,0.1f);
-        leftwall[1].position = Vector2f(0.2f,screeny);
+        leftwall[1].position = Vector2f(0.2f,sy);
 
         VertexArray topwall(LineStrip,2);
         topwall[0].position = Vector2f(0.1f,0.1f);
-        topwall[1].position = Vector2f(screenx,0.2f);
+        topwall[1].position = Vector2f(sx,0.2f);
 
         VertexArray botwall(LineStrip,2);
-        botwall[0].position = Vector2f(0.1f,screeny);
-        botwall[1].position = Vector2f(screenx,screeny-0.2f);
+        botwall[0].position = Vector2f(0.1f,sy);
+        botwall[1].position = Vector2f(sx,sy-0.2f);
 
         VertexArray rightwall(LineStrip,2);
-        rightwall[0].position = Vector2f(screenx-0.1f,0.1f);
-        rightwall[1].position = Vector2f(screenx-0.2f,screeny);
+        rightwall[0].position = Vector2f(sx-0.1f,0.1f);
+        rightwall[1].position = Vector2f(sx-0.2f,sy);
 
         level1.walls.push_back(leftwall);
         level1.walls.push_back(rightwall);
@@ -288,7 +293,5 @@ public:
             levels.push_back(l);
         }
     }
-
-
 
 };
