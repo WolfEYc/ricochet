@@ -1,7 +1,7 @@
 name
 beans
-center
-300,500
+beam
+255,0,0 300,500 310,490
 walls
 183,173 227,394
 targets

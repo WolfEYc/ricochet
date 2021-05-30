@@ -1,29 +1,31 @@
 #include <SFML/Graphics.hpp>
 #include <bits/stdc++.h>
-#include <experimental/filesystem>
+#include <filesystem>
 #include <locale>
 #include "vecmath.h"
 #include "level.h"
 using namespace sf;
-namespace fs = std::experimental::filesystem;
+namespace fs = std::filesystem;
+
+using surface = std::pair<Vector2f,Vector2f>;
 
 Clock c;
 
-unsigned screenx = 600, screeny = 600, fps = 24, level = 0, maxric = 8, curr = 0, wallBuild = 0, botmenu = 0;
-bool rclicking = 0, shot = 0, showMenu = 0, mainMenu = 1, targetPlace = 0, editlevelname = 0;
+unsigned screenx = 600, screeny = 600, fps = 24, level = 0, curr = 0, wallBuild = 0, botmenu = 0, selection = 0;
+bool rclicking = 0, shot = 0, showMenu = 0, mainMenu = 1, targetPlace = 0, editlevelname = 0, playing = 0;
 
 Font font;
-std::string levelname;
+
 Text leveltext;
 
-std::vector<VertexArray> walls;
-std::vector<RectangleShape> enemies, levelselector;
+
+std::vector<RectangleShape> levelselector;
 std::vector<Text> selectorText;
 std::vector<bool> whoisHit;
-std::vector<VertexArray> shots(maxric); 
-
-CircleShape pivot, gun;
-RectangleShape enemy(Vector2f(10.f,20.f));
+std::vector<std::vector<VertexArray>> shots; 
+Color cColor;
+leveld clev;
+RectangleShape target;
 VertexArray newWall(LinesStrip,2);
 
 Texture buildText, placeText, backText, delWalltext, delTargettext, saveText, mainScreenText;
@@ -32,113 +34,9 @@ Sprite buildwall, placeTarget, goBack, delWall, delTarget, save, mainScreen;
 RenderWindow window(VideoMode(screenx,screeny), "Ricochet", Style::Close);
 View view(window.getDefaultView());
 
-std::vector<leveld> levels;
-std::vector<std::ifstream> levelfiles;
+Levels levels;
 
-void initLevels(){
-    VertexArray wall(LineStrip,2);
-
-    leveld level1;
-
-    level1.name = "custom";
-
-    level1.center = Vector2f(300.f,500.f);
-
-    VertexArray leftwall(LineStrip,2);
-    leftwall[0].position = Vector2f(0.1f,0.1f);
-    leftwall[1].position = Vector2f(0.2f,screeny);
-
-    VertexArray topwall(LineStrip,2);
-    topwall[0].position = Vector2f(0.1f,0.1f);
-    topwall[1].position = Vector2f(screenx,0.2f);
-
-    VertexArray botwall(LineStrip,2);
-    botwall[0].position = Vector2f(0.1f,screeny);
-    botwall[1].position = Vector2f(screenx,screeny-0.2f);
-
-    VertexArray rightwall(LineStrip,2);
-    rightwall[0].position = Vector2f(screenx-0.1f,0.1f);
-    rightwall[1].position = Vector2f(screenx-0.2f,screeny);
-
-    level1.walls.push_back(leftwall);
-    level1.walls.push_back(rightwall);
-    level1.walls.push_back(topwall);
-    level1.walls.push_back(botwall);
-
-    for(unsigned i = 0; i < level1.walls.size(); i++){
-        level1.walls[i][0].color = Color::Red;
-        level1.walls[i][1].color = Color::Red;
-    }
-
-    levels.push_back(level1);
-
-    for(auto &file : fs::directory_iterator("levels"))
-        levelfiles.push_back(std::ifstream(file.path()));
-
-    for(unsigned i = 0; i < levelfiles.size(); i++){
-        //each level (file)
-        leveld l;
-
-        l.walls = level1.walls;
-
-        std::string in;
-        unsigned mode = 0;
-        unsigned it = 0;
-        while(levelfiles[i] >> in){
-            if(mode == 4){
-                l.name = in;
-                mode = 0;
-                continue;
-            }
-            if(in == "walls"){
-                mode = 1;
-                continue;
-            }            
-            if(in == "targets"){
-                mode = 2;
-                continue;
-            }
-            if(in == "center"){
-                mode = 3;
-                continue;
-            }
-            if(in == "name"){
-                mode = 4;
-                continue;
-            }
-
-            
-
-            std::stringstream ss(in);
-
-            float first,second;
-            char comma;
-
-            ss >> first >> comma >> second;
-            Vector2f pt(first,second);
-
-            if(mode == 1){
-                wall[it].position = pt;
-                
-                if(it)
-                    l.walls.push_back(wall);
-
-                it = !it;
-                continue;
-            }
-            if(mode == 2){
-                enemy.setPosition(pt);
-                l.enemies.push_back(enemy);
-                continue;
-            }
-            if(mode == 3){
-                l.center = pt;
-            }            
-        }
-        levels.push_back(l);
-
-    }
-    
+void initMenu(){
     unsigned x = 0, y = 0;
     RectangleShape levelrect;
     levelrect.setFillColor(Color::Blue);
@@ -146,11 +44,9 @@ void initLevels(){
     levelrect.setOutlineThickness(3.f);
     levelrect.setOutlineColor(Color::White);
 
-
     Text ltext;
     ltext.setFont(font);
     ltext.setCharacterSize(20);
-    
 
     for(unsigned i = 0; i < levels.size(); i++, x++){
         if(x == 3){
@@ -161,7 +57,7 @@ void initLevels(){
             levelrect.setFillColor(Color::Red);
             
 
-        ltext.setString(levels[i].name.substr(0,20));
+        ltext.setString(levels.getLevel(i).name.substr(0,20));
         ltext.setPosition(x*175+60.f,y*100+260.f);
         selectorText.push_back(ltext);
 
@@ -169,42 +65,33 @@ void initLevels(){
         levelselector.push_back(levelrect);
     }
 
-    botmenu = 600 - y*100 + 200;    
-
+    botmenu = 600 - y*100 + 200;
 }
 
 void load(){
-    walls = levels[level].walls;
-    enemies = levels[level].enemies;
-    gun.setPosition(levels[level].center);
-    levelname = levels[level].name;
+    clev = levels.getLevel(level);
+    
     if(!level)
         leveltext.setPosition(Vector2f(325.f,25.f));
     else
         leveltext.setPosition(Vector2f(75.f,25.f));
 
-    leveltext.setString(levelname);
-    shots = std::vector<VertexArray>(maxric);
-    Vector2f pivpos = gun.getPosition();
-    pivpos.y-=10.f;
-    pivpos.x+=10.f;
-    pivot.setPosition(pivpos);
+    leveltext.setString(clev.name);
+    shots = std::vector<std::vector<VertexArray>>(clev.gunsNpivots.size());    
 }
 
 void init(){ //called once at startup
+    levels.initLevels();
     font.loadFromFile("resources/arial.ttf");
-    enemy.setFillColor(Color::Green);
-    enemy.setOrigin(5.f,10.f);
-    initLevels();
+            
+    target.setSize(Vector2f(20.f,20.f));
+    target.setOrigin(10.f,10.f);
+    target.setOutlineThickness(3.f);
+    
+    initMenu();
     load();
     window.setFramerateLimit(fps);
-    gun.setRadius(5.f);
-    gun.setOrigin(5.f,5.f);
-    gun.setFillColor(Color::Red);
-    pivot.setRadius(5.f);
-    pivot.setFillColor(Color::Blue);
-    pivot.setOrigin(5.f,5.f);
-    
+        
 
     buildText.loadFromFile("resources/buildwall.png");
     placeText.loadFromFile("resources/placeTarget.png");
@@ -254,28 +141,26 @@ void render(){
     windowoffset.y+=30;
     Vector2f mousepos = Vector2f(Mouse::getPosition()-windowoffset);
 
-    if(!shot){        
-        for(unsigned line = 0; line < maxric; line++){
-            window.draw(shots[line]);
-        }        
-    }else{        
-        for(unsigned line = 0; line < curr; line++){
-            window.draw(shots[line]);
-        }       
-    }
-
-    for(unsigned i = 0; i < walls.size(); i++){
-        window.draw(walls[i]);
-    }
-
-    for(unsigned i = 0; i < enemies.size(); i++){
-        window.draw(enemies[i]);
-    }
-
-    window.draw(gun);
-    window.draw(pivot);
-
     
+    for(unsigned i = 0; i < shots.size(); i++){        
+        for(unsigned line = 0; line < shots[i].size(); line++){
+            window.draw(shots[i][line]);
+        } 
+    }       
+    
+
+    for(unsigned i = 0; i < clev.walls.size(); i++){
+        window.draw(clev.walls[i]);
+    }
+
+    for(unsigned i = 0; i < clev.targets.size(); i++){
+        window.draw(clev.targets[i]);
+    }
+
+    for(auto i : clev.gunsNpivots){
+        window.draw(i.first);
+        window.draw(i.second);
+    }
 
     if(showMenu){
         if(editlevelname){
@@ -290,9 +175,9 @@ void render(){
                 text_effect_time = sf::Time::Zero;
             }
 
-            leveltext.setString(levelname + (show_cursor ? '_' : ' '));
+            leveltext.setString(clev.name + (show_cursor ? '_' : ' '));
         }else{
-            leveltext.setString(levelname);
+            leveltext.setString(clev.name);
         }
 
 
@@ -313,121 +198,83 @@ void render(){
     }
 
     if(targetPlace){
-        enemy.setPosition(mousepos);
-        window.draw(enemy);
+        target.setPosition(mousepos);
+        window.draw(target);
     }
 
     window.display();
 }
 
-unsigned firstCollision (Vector2f a1, Vector2f a2, unsigned prevwall){
-    float closest_intersection = 9999.f;
-    unsigned closest_wall = 69;
 
-    for(unsigned w = 0; w < walls.size(); w++){
 
-        if(w == prevwall)
-            continue;
+void calcShots(){
+    Vector2f a1,a2,b1,b2;
+    surface hitsurface;
 
-        VertexArray wall = walls[w];
+    for(unsigned s = 0; s < shots.size(); s++){
+        a1 = clev.getGun(s).getPosition();
+        a2 = clev.getPivot(s).getPosition();
 
-        Vector2f b1 = wall[0].position;
-        Vector2f b2 = wall[1].position;
+        shots[s].clear();
 
-        if(collides(a1,a2,b1,b2)){        
-            Vector2f ipoint = calcIntersectVector(a1,a2,b1,b2);
-            
-            float dist_to_intersection = dist(ipoint - a1);
-            if(dist_to_intersection < closest_intersection){
-                closest_intersection = dist_to_intersection;
-                closest_wall = w;
-            }        
+        for(unsigned i = 0; i < clev.targets.size(); i++){
+            clev.targets[i].setFillColor(Color::Black);
         }
-    }
-    return closest_wall;
-}
+        
+        unsigned hit = 69;
+        bool done = 0;
 
-void calcShot(){
+        while(!done){
 
-    Vector2f a1 = gun.getPosition();
-    Vector2f a2 = pivot.getPosition();
+            hitsurface = clev.firstCollision(a1,a2,hit);
 
-    std::vector<VertexArray> thisshots;
-    whoisHit = std::vector<bool> (enemies.size(), 0);
+            //std::cout << wallhit << std::endl;
 
-    for(unsigned i = 0; i < enemies.size(); i++){
-        enemies[i].setFillColor(Color::Green);
-    }
-
-    unsigned wallhit = 69;
-    for(unsigned i = 0; i < maxric; i++){
-
-        wallhit = firstCollision(a1,a2,wallhit);
-
-        //std::cout << wallhit << std::endl;
-
-        if(wallhit == 69)
-            break;
-
-        Vector2f b1 = walls[wallhit][0].position;
-        Vector2f b2 = walls[wallhit][1].position;
-
-        Vector2f collision_v = calcIntersectVector(a1,a2,b1,b2);
-
-        for(unsigned i = 0; i < enemies.size(); i++){
-            if(segmentIntersectsRectangle(enemies[i].getGlobalBounds(),a1,collision_v)){
-                whoisHit[i] = 1;
-                enemies[i].setFillColor(Color::Yellow);        
+            if(hit == 69){
+                std::cout << "no collision with anything !!!\n";
+                break;
             }
+
+            if(hit < 0)
+                done = 1;
+
+            
+            b1 = hitsurface.first, b2 = hitsurface.second;
+            
+
+            Vector2f collision_v = calcIntersectVector(a1,a2,b1,b2);
+
+            Color beamcolor = clev.getGun(s).getFillColor();
+
+            for(RectangleShape target : clev.targets){
+                if(segmentIntersectsRectangle(target.getGlobalBounds(),a1,collision_v)){                    
+                    target.setFillColor(beamcolor);
+                }
+            }
+
+            VertexArray shot(LineStrip,2);
+            shot[0].position = a1;
+            shot[0].color = beamcolor;
+            shot[1].position = collision_v;
+            shot[1].color = beamcolor;
+
+            shots[s].push_back(shot);
+
+            a2 = newPivot(a1,collision_v,b1,b2);
+
+            //std::cout << "new piv: ";
+            //printVector2f(a2);
+
+            //std::cout << "collision pt: ";
+            a1 = collision_v;
+            //printVector2f(a1);
+
         }
 
-        VertexArray shot(LineStrip,2);
-        shot[0].position = a1;
-        shot[0].color = Color(155,135,12);
-        shot[1].position = collision_v;
-        shot[1].color = Color(155,135,12);
-
-        shots[i] = shot;
-
-        a2 = newPivot(a1,collision_v,b1,b2);
-
-        //std::cout << "new piv: ";
-        //printVector2f(a2);
-
-        //std::cout << "collision pt: ";
-        a1 = collision_v;
-        //printVector2f(a1);
-
     }
 }
 
-void saveLevel(){
-    std::ofstream out("levels/"+levelname+".txt");
-    out << "name\n" << levelname.substr(0,20);
-    out << "\ncenter\n";
-    printVector2f(gun.getPosition(),out);
-    out << "\nwalls\n";
-    for(unsigned i = 4; i < walls.size(); i++){
-        printVector2f(walls[i][0].position,out);
-        out << " ";
-        printVector2f(walls[i][1].position,out);
-        out << std::endl;
-    }
 
-    out << "targets\n";
-    
-    for(unsigned i = 0; i < enemies.size(); i++){
-        printVector2f(enemies[i].getPosition(),out);
-        out << std::endl;
-    }
-
-    levels.clear();
-    levelselector.clear();
-    levelfiles.clear();
-    selectorText.clear();
-
-    initLevels();
-}
 
 int main(){
     init();
@@ -473,8 +320,8 @@ int main(){
                         }
                     }else
                     if(targetPlace){
-                        enemy.setPosition(newpos);
-                        enemies.push_back(enemy);
+                        target.setPosition(newpos);
+                        clev.targets.push_back(target);
                         targetPlace = 0;
                         showMenu = 1;
                     }else
@@ -484,7 +331,7 @@ int main(){
                             newWall[0].position = newpos;                                                     
                         }else if(wallBuild == 3){
                             newWall[1].position = newpos;
-                            walls.push_back(newWall);
+                            clev.walls.push_back(newWall);
                             showMenu = 1;
                             wallBuild = 0;
                         }else{
@@ -510,16 +357,20 @@ int main(){
                             }
                             if(delWall.getGlobalBounds().contains(newpos)){                                                             
                                 //std::cout << "deleting wall" << std::endl;
-                                if(walls.size()>4)
-                                    walls.pop_back();
+                                if(clev.walls.size()>4)
+                                    clev.walls.pop_back();
                             }
                             if(delTarget.getGlobalBounds().contains(newpos)){                                                             
                                 //std::cout << "deleting Target" << std::endl;
-                                if(!enemies.empty())
-                                    enemies.pop_back();
+                                if(!clev.targets.empty())
+                                    clev.targets.pop_back();
                             }
                             if(save.getGlobalBounds().contains(newpos)){
-                                saveLevel();
+                                clev.saveLevel();
+                                levels.clear();
+                                levelselector.clear();    
+                                selectorText.clear();
+                                levels.initLevels();
                                 //std::cout << "saving level" << std::endl;                                
                             }
                             if(leveltext.getGlobalBounds().contains(newpos)){
@@ -528,32 +379,26 @@ int main(){
                             }
                         }
                     }else //cant change pivot if menu is open
-                    if(abs(newpos.x-gun.getPosition().x) > 0.12f && abs(newpos.y-gun.getPosition().y) > 0.12f
-                        && dist(newpos-gun.getPosition()) > 10.f )
-                        pivot.setPosition(Vector2f(Mouse::getPosition()-windowoffset)); 
+                    if(abs(newpos.x-clev.getGun(selection).getPosition().x) > 0.12f && abs(newpos.y-clev.getGun(selection).getPosition().y) > 0.12f
+                        && dist(newpos-clev.getGun(selection).getPosition()) > 10.f)
+                        clev.getPivot(selection).setPosition(Vector2f(Mouse::getPosition()-windowoffset)); 
                 }
                 if(Mouse::isButtonPressed(Mouse::Right)){
                     if(showMenu && level == 0){
-                        gun.setPosition(newpos);
+                        clev.getGun(selection).setPosition(newpos);
                     }
                 }
             }
             if(e.type == Event::KeyPressed){
                 switch(e.key.code){
-                    case Keyboard::Space:
-                        if(shot == 0){
-                            shot = 1;
-                            calcShot();
-                        }
-                        break;
                     case Keyboard::Tab:
                         if(!mainMenu && !wallBuild && !targetPlace)                        
                             showMenu = !showMenu;
                         
                         break;
                     case Keyboard::BackSpace:
-                        if(editlevelname && !levelname.empty())
-                            levelname.pop_back();
+                        if(editlevelname && !clev.name.empty())
+                            clev.name.pop_back();
                         break;
                     case Keyboard::Enter:
                         editlevelname = 0;
@@ -567,16 +412,11 @@ int main(){
             }
             if (editlevelname && e.type == sf::Event::TextEntered) {
                 if (std::isprint(e.text.unicode) && e.text.unicode!=' ')
-                    levelname += e.text.unicode;
+                    clev.name += e.text.unicode;
             }
         }
-        if(shot){
-            curr++;
-            if(curr == maxric){
-                shot = 0;
-                curr = 0;
-            }  
-        }
+        
+        calcShots();
         render();
     }
     return 0;
