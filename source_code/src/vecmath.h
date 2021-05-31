@@ -6,7 +6,6 @@ using namespace sf;
 
 using l_equation = std::pair<float,float>;
 
-
 float dist(Vector2f v){
     return sqrt(v.x*v.x+v.y*v.y);
 }
