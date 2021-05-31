@@ -1,6 +1,7 @@
 #include <bits/stdc++.h>
 #include <filesystem>
 #include <SFML/Graphics.hpp>
+#include "beam.h"
 using namespace sf;
 
 //comment
@@ -12,22 +13,14 @@ class leveld
 {
 public:
     std::string name;
-    std::vector<std::pair<CircleShape,CircleShape>> gunsNpivots;
+    std::vector<Beam> beams;
     std::vector<RectangleShape> targets;
     std::vector<VertexArray> walls;
     std::vector<RectangleShape> reflectors;  
 
-    CircleShape& getGun(unsigned i){
-        return gunsNpivots[i].first;
-    }
-
-    CircleShape& getPivot(unsigned i){
-        return gunsNpivots[i].second;
-    }
-
     leveld& operator=(leveld other) {
         name = other.name;
-        gunsNpivots = other.gunsNpivots;
+        beams = other.beams;
         targets = other.targets;
         walls = other.walls;
         return *this;
@@ -38,12 +31,12 @@ public:
         out << "name\n" << name.substr(0,20);
         out << "\nbeams\n";
         Color c;
-        for(unsigned i = 0; i < gunsNpivots.size(); i++){        
-            c = getGun(i).getFillColor();
+        for(Beam b : beams){        
+            c = b.getColor();
             out << c.r <<","<<c.g<<","<<c.b << " ";        
-            printVector2f(getGun(i).getPosition(),out);
+            printVector2f(b.getOrigin(),out);
             out << " ";
-            printVector2f(getPivot(i).getPosition(),out);
+            printVector2f(b.getPivot(),out);
             out << std::endl;
         }
         
@@ -147,19 +140,15 @@ public:
         level1.name = "custom";
 
         Color color = Color::Yellow;
-        CircleShape legun;
-        legun.setRadius(5.f);
-        legun.setPosition(Vector2f(300.f,500.f));
-        legun.setFillColor(color);
-        legun.setOrigin(5.f,5.f);
-        CircleShape lepivot = legun;
+        
+        Vector2f origin(300.f,500.f);
+        
+        Vector2f pivot = origin;
 
-        Vector2f pivpos = legun.getPosition();
-        pivpos.y-=10.f;
-        pivpos.x+=10.f;
-        lepivot.setPosition(pivpos);
+        pivot.y-=10.f;
+        pivot.x+=10.f;
 
-        level1.gunsNpivots.push_back({legun,lepivot});    
+        level1.beams.push_back(Beam(origin,pivot,color));    
 
         VertexArray leftwall(LineStrip,2);
         leftwall[0].position = Vector2f(0.1f,0.1f);
@@ -205,8 +194,10 @@ public:
 
             std::string in;
             unsigned mode = 0;
-            unsigned it = 0;
-            while(levelfiles[i] >> in){
+
+            float first,second,third;
+            char comma;
+            while(getline(levelfiles[i],in)){
                 if(mode == 4){
                     l.name = in;
                     mode = 0;
@@ -231,35 +222,38 @@ public:
 
                 std::stringstream ss(in);
 
-                if(mode == 3){                    
+                if(mode == 1){                   
+                    ss >> first >> comma >> second;
 
-                    float first,second,third;
-                    char comma;
+                    wall[0].position = Vector2f(first,second);
 
+                    ss >> first >> comma >> second;
+
+                    wall[1].position = Vector2f(first,second);
+
+                    l.walls.push_back(wall);
+                    
+                    continue;
+                }
+
+                if(mode == 3){
                     ss >> first >> comma >> second >> comma >> third;
 
                     color = Color(first,second,third);
 
                     ss >> first >> comma >> second;
 
+                    origin = Vector2f(first,second);
+        
+                    ss >> first >> comma >> second;     
 
-                    legun.setPosition(Vector2f(first,second));
-                    legun.setFillColor(color);
-                    
-                    lepivot = legun;  
+                    pivot = Vector2f(first,second);
 
-                    ss >> first >> comma >> second;           
-                    lepivot.setPosition(first,second);
-
-                    l.gunsNpivots.push_back({legun,lepivot});
+                    l.beams.push_back(Beam(origin,pivot,color));
                     continue;
                 }
 
                 if(mode == 2){
-
-                    float first,second,third;
-                    char comma;
-
                     ss >> first >> comma >> second >> comma >> third;
 
                     color = Color(first,second,third);
@@ -271,28 +265,9 @@ public:
                     target.setPosition(first,second);
                     l.targets.push_back(target);
                     continue;
-                }               
-
-                float first,second;
-                char comma;
-
-                ss >> first >> comma >> second;
-                Vector2f pt(first,second);
-
-                if(mode == 1){
-                    wall[it].position = pt;
-                    
-                    if(it)
-                        l.walls.push_back(wall);
-
-                    it = !it;
-                    continue;
-                }
-                
-                        
+                }                           
             }
             levels.push_back(l);
         }
     }
-
 };

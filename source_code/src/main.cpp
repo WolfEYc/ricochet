@@ -1,7 +1,6 @@
 #include <SFML/Graphics.hpp>
 #include <bits/stdc++.h>
 #include <locale>
-#include "vecmath.h"
 #include "level.h"
 using namespace sf;
 
@@ -9,13 +8,11 @@ using surface = std::pair<Vector2f,Vector2f>;
 
 Clock c;
 
-unsigned screenx = 1000, screeny = 1000, fps = 24, level = 0, curr = 0, wallBuild = 0, botmenu = 0, selection = 0;
-bool rclicking = 0, shot = 0, showMenu = 0, mainMenu = 1, targetPlace = 0, editlevelname = 0, playing = 0;
+unsigned screenx = 1280, screeny = 720, fps = 24, level = 0, curr = 0, wallBuild = 0, botmenu = 0;
+bool rclicking = 0, shot = 0, showMenu = 0, mainMenu = 1, targetPlace = 0, editlevelname = 0, playing = 0, shift = 0, movingbeam = 0;
 
 Font font;
-
 Text leveltext;
-
 
 std::vector<RectangleShape> levelselector;
 std::vector<Text> selectorText;
@@ -24,6 +21,7 @@ std::vector<std::vector<VertexArray>> shots;
 Color cColor;
 leveld clev;
 RectangleShape target;
+Beam beam;
 VertexArray newWall(LinesStrip,2);
 
 Texture buildText, placeText, backText, delWalltext, delTargettext, saveText, mainScreenText;
@@ -70,16 +68,15 @@ void initMenu(){
 void load(){
     clev = levels.getLevel(level);
     
-    
     if(!level)
-        leveltext.setPosition(Vector2f(325.f,25.f));
+        leveltext.setPosition(Vector2f(400.f,25.f));
     else{
         leveltext.setPosition(Vector2f(75.f,25.f));
         playing = 1;
     }
 
     leveltext.setString(clev.name);
-    shots = std::vector<std::vector<VertexArray>>(clev.gunsNpivots.size());    
+    shots = std::vector<std::vector<VertexArray>>(clev.beams.size());    
 }
 
 void init(){ //called once at startup
@@ -124,20 +121,7 @@ void init(){ //called once at startup
     leveltext.setCharacterSize(20);
     leveltext.setFillColor(Color::White);
 
-    red.setRadius(10.f);
-    red.setOrigin(10.f,10.f);
-    red.setOutlineThickness(3.f);
-    red.setOutlineColor(Color::Red);
-
-    green = red;
-    blue = red;
-    
-    green.setOutlineColor(Color::Green);
-    blue.setOutlineColor(Color::Blue);
-
-    red.setPosition(325.f,25.f);
-    green.setPosition(345.f,25.f);
-    blue.setPosition(365.f,25.f);
+    beam.setPosition(Vector2f(325.f,30.f));
     
 }
 
@@ -174,9 +158,12 @@ void render(){
         window.draw(clev.targets[i]);
     }
 
-    for(auto i : clev.gunsNpivots){
-        window.draw(i.first);
-        window.draw(i.second);
+    if(!level){
+    for(Beam &i : clev.beams){
+        if(i.selected)
+            i.setPosition(mousepos);
+        i.draw(window);
+    }
     }
 
     if(showMenu){
@@ -199,17 +186,20 @@ void render(){
 
 
         window.draw(goBack);
-        if(level == 0){
+        if(!level){
             window.draw(buildwall);
             window.draw(placeTarget);
             window.draw(delWall);
             window.draw(delTarget);
             window.draw(save);
-            window.draw(red);
-            window.draw(green);
-            window.draw(blue);                        
+            beam.draw(window);                        
         }
         window.draw(leveltext);
+    }
+
+    if(movingbeam){
+        beam.setPosition(mousepos);
+        beam.draw(window);
     }
 
     if(wallBuild == 2){
@@ -229,9 +219,9 @@ void calcShots(){
     Vector2f a1,a2,b1,b2;
     surface hitsurface;
 
-    for(unsigned s = 0; s < shots.size(); s++){
-        a1 = clev.getGun(s).getPosition();
-        a2 = clev.getPivot(s).getPosition();
+    for(unsigned s = 0; s < clev.beams.size(); s++){
+        a1 = clev.beams[s].getOrigin();
+        a2 = clev.beams[s].getPivot();
 
         shots[s].clear();
 
@@ -259,12 +249,11 @@ void calcShots(){
             
             b1 = hitsurface.first, b2 = hitsurface.second;
             
-
             Vector2f collision_v = calcIntersectVector(a1,a2,b1,b2);
 
-            Color beamcolor = clev.getGun(s).getFillColor();
+            Color beamcolor = clev.beams[s].getColor();
 
-            for(RectangleShape target : clev.targets){
+            for(RectangleShape &target : clev.targets){
                 if(segmentIntersectsRectangle(target.getGlobalBounds(),a1,collision_v)){                    
                     target.setFillColor(beamcolor);
                 }
@@ -280,15 +269,8 @@ void calcShots(){
 
             a2 = newPivot(a1,collision_v,b1,b2);
 
-            //std::cout << "new piv: ";
-            //printVector2f(a2);
-
-            //std::cout << "collision pt: ";
             a1 = collision_v;
-            //printVector2f(a1);
-
         }
-
     }
 }
 
@@ -387,15 +369,33 @@ void eventHandler(){
                             editlevelname = 1;
                             //std::cout << "editing level" << std::endl;
                         }
+                        if(beam.isClicked(newpos)){
+                            if(shift)
+                                beam.toggleColor(newpos);
+                            else{
+                                movingbeam = 1;
+                                showMenu = 0;
+                            }
+                        }
+                        for(Beam &b : clev.beams){
+                            if(b.isClicked(newpos)){
+                                if(shift)
+                                    b.toggleColor(newpos);
+                                else{
+                                    b.selected = 1;
+                                    showMenu = 0;
+                                }
+                            }
+                        }
+
+                    }else{
+                        //playable level
                     }
-                }else //cant change pivot if menu is open
-                if(abs(newpos.x-clev.getGun(selection).getPosition().x) > 0.12f && abs(newpos.y-clev.getGun(selection).getPosition().y) > 0.12f
-                    && dist(newpos-clev.getGun(selection).getPosition()) > 10.f)
-                    clev.getPivot(selection).setPosition(Vector2f(Mouse::getPosition()-windowoffset)); 
+                }
             }
             if(Mouse::isButtonPressed(Mouse::Right)){
                 if(showMenu && level == 0){
-                    clev.getGun(selection).setPosition(newpos);
+                    
                 }
             }
         }
@@ -413,11 +413,35 @@ void eventHandler(){
                 case Keyboard::Enter:
                     editlevelname = 0;
                     break;
+                case Keyboard::LShift:
+                    shift = 1;
+                    break;
+            }
+        }
+        if(e.type == Event::KeyReleased){
+            switch(e.key.code){
+                case Keyboard::LShift:
+                    shift = 0;
+                    break;
             }
         }
         if(e.type == Event::MouseButtonReleased){
             if(!Mouse::isButtonPressed(Mouse::Right)){
                 rclicking = 0;
+            }
+            if(!Mouse::isButtonPressed(Mouse::Left)){
+                if(movingbeam){
+                    movingbeam = 0;                    
+                    clev.beams.push_back(beam);
+                    beam.setPosition(Vector2f(325.f,30.f));
+                    shots = std::vector<std::vector<VertexArray>>(clev.beams.size());  
+                }
+                for(Beam &b : clev.beams){
+                    if(b.selected){
+                        b.selected = 0;
+                        showMenu = 1;
+                    }
+                }
             }
         }
         if (editlevelname && e.type == sf::Event::TextEntered) {
@@ -431,9 +455,9 @@ int main(){
     init();
     
     while(window.isOpen()){
-
-        eventHandler();        
-        calcShots();
+        eventHandler();  
+        if(!mainMenu)      
+            calcShots();
         render();
     }
     return 0;

@@ -165,9 +165,11 @@ float rotationAngle(Vector2f origin, Vector2f initPos, Vector2f currPos){
     //equation from init thru origin
     l_equation initline = eqFrom2Pts(initPos,origin);
     // y <= mx + b
+    bool Lthan90degs = sameSigns((origin-perpIntersect),(origin-currPos));
+
     bool underCurve = (currPos.y <= initline.first*currPos.x + initline.second); 
     
-    bool posX = initPos.x > origin.x;
+    bool posX = initPos.x >= origin.x;
 
     bool posAngle = (underCurve == posX);
     
@@ -177,5 +179,13 @@ float rotationAngle(Vector2f origin, Vector2f initPos, Vector2f currPos){
 
     float angle = rads2degs(cos(adj/hyp));
 
+    if(!Lthan90degs)
+        angle = 180 - angle;
+
     return posAngle ? angle : -angle;
+}
+
+Vector2f midpoint(Vector2f p1, Vector2f p2){
+    Vector2f sum = p1+p2;
+    return Vector2f(sum.x*0.5,sum.y*0.5);
 }

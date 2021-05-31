@@ -1,6 +1,6 @@
 name
 beans
-beam
+beams
 255,0,0 300,500 310,490
 walls
 183,173 227,394
