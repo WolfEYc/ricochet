@@ -2,7 +2,10 @@
 #include <bits/stdc++.h>
 using namespace sf;
 
+#define PI 3.14159
+
 using l_equation = std::pair<float,float>;
+
 
 float dist(Vector2f v){
     return sqrt(v.x*v.x+v.y*v.y);
@@ -14,12 +17,24 @@ float nonzero(float num){
     return num;
 }
 
+float rads2degs(float rads){
+    return rads * 180.f/PI;
+}
+
+float degs2rads(float degs){
+    return degs * 180.f/PI;
+}
+
 void printVector2f(Vector2f v){
     std::cout << v.x << "," << v.y << std::endl;
 }
 
 void printVector2f(Vector2f v, std::ofstream &out){
     out << v.x << "," << v.y;
+}
+
+bool sameSigns(Vector2f p1, Vector2f p2){
+    return (p1.x < 0 == p2.x < 0) && (p1.y < 0 == p2.y < 0);
 }
 
 l_equation eqFrom2Pts(Vector2f p1, Vector2f p2){
@@ -33,17 +48,15 @@ l_equation eqFrom2Pts(Vector2f p1, Vector2f p2){
 }
 
 Vector2f calcIntersectVector(Vector2f a1, Vector2f a2, Vector2f b1, Vector2f b2){
-    float adX = nonzero(a2.x-a1.x);
-    float adY = nonzero(a2.y-a1.y);
-    float bdX = nonzero(b2.x-b1.x);
-    float bdY = nonzero(b2.y-b1.y);
-
     
-    float aM = (adY)/(adX);
-    float aB = a1.y - (aM*a1.x);
+    l_equation a = eqFrom2Pts(a1,a2);
+    l_equation b = eqFrom2Pts(b1,b2);
+    
+    float aM = a.first;
+    float aB = a.second;
 
-    float bM = (bdY)/(bdX);
-    float bB = b1.y - (bM*b1.x);
+    float bM = b.first;
+    float bB = b.second;
 
     float left = aM-bM;
     float right = bB-aB;
@@ -53,17 +66,16 @@ Vector2f calcIntersectVector(Vector2f a1, Vector2f a2, Vector2f b1, Vector2f b2)
     return Vector2f(X,Y);
 }
 
-Vector2f calcPerpIntersect(Vector2f a1, Vector2f b1, Vector2f b2){
+Vector2f calcPerpIntersect(Vector2f thru, Vector2f l1, Vector2f l2){
 
-    
-    float bM = eqFrom2Pts(b1,b2).first; //slope of line
+    float bM = eqFrom2Pts(l1,l2).first; //slope of line
     
     float pM = -1.f/(bM); //perpendicular slope (sign flipped inverse)
-    float pB = a1.y - (pM*a1.x); //y-mx = b
+    float pB = thru.y - (pM*thru.x); //y-mx = b
 
     Vector2f y_int(0.f,pB); //yint of perp line
 
-    return calcIntersectVector(a1,y_int,b1,b2); //return intersection point
+    return calcIntersectVector(thru,y_int,l1,l2); //return intersection point
 }
 
 bool segmentIntersectsRectangle(const sf::FloatRect& rect, const sf::Vector2f& a_p1, const sf::Vector2f& a_p2)
@@ -128,31 +140,7 @@ bool collides (Vector2f origin, Vector2f pivot, Vector2f b1, Vector2f b2){
 
     float wall_length = dist(b2-b1);
     
-    bool axneg, bxneg, ayneg, byneg;
-
-    if((pivot.x - origin.x) > 0.f)
-        axneg = 0;
-    else
-        axneg = 1;
-    
-    if((intersection_vector.x - origin.x) > 0.f)
-        bxneg = 0;
-    else
-        bxneg = 1;
-
-    if(pivot.y - origin.y > 0.f)
-        ayneg = 0;
-    else
-        ayneg = 1;
-
-    if((intersection_vector.y - origin.y) > 0.f)
-        byneg = 0;
-    else
-        byneg = 1;
-    
-
-
-    return bxneg == axneg && byneg == ayneg && furthest < wall_length;
+    return sameSigns(intersection_vector-origin,pivot-origin) && furthest < wall_length;
 }
 
 Vector2f newPivot(Vector2f a1, Vector2f ipoint, Vector2f walla, Vector2f wallb){
@@ -172,10 +160,23 @@ Vector2f newPivot(Vector2f a1, Vector2f ipoint, Vector2f walla, Vector2f wallb){
     return midpoint + midpoint - a1;
 }
 
-//make my TRIANGLE AHAHAHAAH
 float rotationAngle(Vector2f origin, Vector2f initPos, Vector2f currPos){
+    //of the currline thru the init pos
+    Vector2f perpIntersect = calcPerpIntersect(initPos,origin,currPos);
+    //equation from init thru origin
+    l_equation initline = eqFrom2Pts(initPos,origin);
+    // y <= mx + b
+    bool underCurve = (currPos.y <= initline.first*currPos.x + initline.second); 
+    
+    bool posX = initPos.x > origin.x;
 
+    bool posAngle = (underCurve == posX);
+    
+    float hyp = dist(origin-initPos);
 
+    float adj = dist(origin-perpIntersect);
 
+    float angle = rads2degs(cos(adj/hyp));
+
+    return posAngle ? angle : -angle;
 }
-
