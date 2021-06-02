@@ -1,5 +1,5 @@
 #include <SFML/Graphics.hpp>
-#include "vecmath.h"
+#include "transformer.h"
 using namespace sf;
 
 Color r(255,0,0);
@@ -8,12 +8,11 @@ Color b(0,0,255);
 Color black(0,0,0);
 Color white(255,255,255);
 
-class Beam{
+class Beam : public Transformer{
 private:
-    CircleShape red,green,blue,tri;
+    CircleShape red,green,blue;
 public:
-    bool selected;
-    Beam(){
+    Beam() : Transformer(){
         red.setRadius(3.6f);
         red.setOrigin(3.6f,3.6f);
         red.setOutlineThickness(2.f);
@@ -23,19 +22,8 @@ public:
         blue = red;
         green.setOutlineColor(g);
         blue.setOutlineColor(b);
-        tri.setRadius(15.f);
-        tri.setPointCount(3);
-        tri.setOrigin(15.f,15.f);
-        tri.setOutlineColor(black);
-        tri.setOutlineThickness(2.f);
-        tri.setFillColor(black);
-        tri.rotate(0.0001f);
-        selected = 0;
-    }
-    
-    Beam(Vector2f origin, float rotation) : Beam(){
-        setPosition(origin);
-        rotate(rotation);
+        shape.setPointCount(3);
+        setColor(Color::Black);
     }
 
     Beam(Vector2f origin, Vector2f pivot, Color beamcolor) : Beam() {
@@ -45,7 +33,7 @@ public:
     }
 
     void setColor(Color c){
-        tri.setOutlineColor(c);
+        Transformer::setColor(c);
         if(c.r == 255)
             red.setFillColor(r);
         if(c.b == 255)
@@ -54,93 +42,67 @@ public:
             green.setFillColor(g);
     }
 
-    void setPosition(Vector2f newpos){
-        tri.setPosition(newpos);
-        red.setPosition(newpos.x,newpos.y-6.f);
-        green.setPosition(newpos.x-5.f,newpos.y+4.f);
-        blue.setPosition(newpos.x+5.f,newpos.y+4.f);
-    }
-
-    void setPivot(Vector2f pivot){
-        
-        std::cout << "origin: ";
-        printVector2f(getOrigin());
-        std::cout << "init: ";
-        printVector2f(getPivot());
-        std::cout << "curr: ";
-        printVector2f(pivot);
-
-        float angle = rotationAngle(getOrigin(),getPivot(),pivot);
-        std::cout << angle << std::endl;
-        rotate(angle);
-    }
-
-    void rotate(float angle){
-        tri.rotate(angle);
+    void setPosition(Vector2f newpos) override{
+        Transformer::setPosition(newpos);
         Vector2f top = getPoint(0), right = getPoint(1), left = getPoint(2);
         red.setPosition(midpoint(top,getOrigin()));
         blue.setPosition(midpoint(right,getOrigin()));
         green.setPosition(midpoint(left,getOrigin()));
     }
 
-    bool isClicked(Vector2f mousepos){
-        return tri.getGlobalBounds().contains(mousepos);
-    }
-
-    Color getColor(){
-        return tri.getOutlineColor();
-    }
-
-    Vector2f getOrigin(){
-        return tri.getPosition();
-    }
-
-    Vector2f getPivot(){
-        return getPoint(0);
+    void setPivot(Vector2f pivot) override{
+        Transformer::setPivot(pivot);
+        Vector2f top = getPoint(0), right = getPoint(1), left = getPoint(2);
+        red.setPosition(midpoint(top,getOrigin()));
+        blue.setPosition(midpoint(right,getOrigin()));
+        green.setPosition(midpoint(left,getOrigin()));      
     }
     
     void toggleColor(Vector2f mousepos){
         if(red.getGlobalBounds().contains(mousepos)){
             if(red.getFillColor() == black){
                 red.setFillColor(r);
-                tri.setOutlineColor(tri.getOutlineColor()+r);
+                shape.setOutlineColor(shape.getOutlineColor()+r);
             }else{
                 red.setFillColor(black);
-                tri.setOutlineColor(tri.getOutlineColor()-r);
+                Color outcol = shape.getOutlineColor();
+                outcol.r=0;
+                shape.setOutlineColor(outcol);
             }            
         }else
         if(green.getGlobalBounds().contains(mousepos)){
             if(green.getFillColor() == black){
                 green.setFillColor(g);
-                tri.setOutlineColor(tri.getOutlineColor()+g);
+                shape.setOutlineColor(shape.getOutlineColor()+g);
             }else{
                 green.setFillColor(black);
-                tri.setOutlineColor(tri.getOutlineColor()-g);
+                Color outcol = shape.getOutlineColor();
+                outcol.g=0;
+                shape.setOutlineColor(outcol);
             }
             
         }else
         if(blue.getGlobalBounds().contains(mousepos)){
             if(blue.getFillColor() == black){
                 blue.setFillColor(b);
-                tri.setOutlineColor(tri.getOutlineColor()+b);
+                shape.setOutlineColor(shape.getOutlineColor()+b);
             }else{
                 blue.setFillColor(black);
-                tri.setOutlineColor(tri.getOutlineColor()-b);
+                Color outcol = shape.getOutlineColor();
+                outcol.b=0;
+                shape.setOutlineColor(outcol);                
             }            
-        }
-         
+        } 
     }
 
-    void draw(RenderWindow &window){
-        
-        window.draw(tri);
+    void draw(RenderWindow &window) override{
+        window.draw(shape);
         window.draw(red);
         window.draw(green);
         window.draw(blue);
-        
     }
 
     Vector2f getPoint(unsigned i){
-        return tri.getTransform().transformPoint(tri.getPoint(i));
+        return shape.getTransform().transformPoint(shape.getPoint(i));
     }
 };

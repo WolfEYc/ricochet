@@ -16,7 +16,8 @@ public:
     std::vector<Beam> beams;
     std::vector<RectangleShape> targets;
     std::vector<VertexArray> walls;
-    std::vector<RectangleShape> reflectors;  
+    std::vector<Transformer> reflectors;
+    float maxref;  
 
     leveld& operator=(leveld other) {
         name = other.name;
@@ -61,6 +62,31 @@ public:
         int closest_index = 69;
         surface closest_reflector;
 
+        for(unsigned i = 0; i < beams.size(); i ++){
+            std::vector<surface> reflectablewalls = beams[i].getWalls();
+            if(a1 == beams[i].getOrigin() || a2 == beams[i].getPivot())
+                continue;
+
+            for(unsigned r = 0; r < reflectablewalls.size(); r++){
+                surface refable = reflectablewalls[r];
+
+                Vector2f b1 = refable.first;
+                Vector2f b2 = refable.second;
+
+                if(collides(a1,a2,b1,b2)){
+                    Vector2f ipoint = calcIntersectVector(a1,a2,b1,b2);
+                    float dist_to_intersection = dist(ipoint - a1);
+                    if(dist_to_intersection < closest_dist){
+                        closest_dist = dist_to_intersection;
+                        closest_index = -1;
+                        closest_reflector = {b1,b2};
+                    }
+                }
+
+            }
+            
+        }
+
         for(unsigned w = 0; w < walls.size(); w++){
             VertexArray wall = walls[w];
 
@@ -79,38 +105,38 @@ public:
             }
         }
 
-        for(unsigned r = 0; r < reflectors.size(); r++){
-
-            if(r == prevhit)
+        for(unsigned i = 0; i < reflectors.size(); i ++){
+            if(i == prevhit)
                 continue;
 
-            RectangleShape reflector = reflectors[r];
-            
-            for(unsigned p = 0; p < 4; p++){
-                Vector2f b1 = reflector.getTransform().transformPoint(reflector.getPoint(p));
+            std::vector<surface> reflectablewalls = reflectors[i].getWalls();            
 
-                Vector2f b2;
-                if(p==3)
-                    b2 = reflector.getTransform().transformPoint(reflector.getPoint(0));
-                else
-                    b2 = reflector.getTransform().transformPoint(reflector.getPoint(p+1));
-            
+            for(unsigned r = 0; r < reflectablewalls.size(); r++){
+                surface refable = reflectablewalls[r];
+
+                Vector2f b1 = refable.first;
+                Vector2f b2 = refable.second;
+
                 if(collides(a1,a2,b1,b2)){
                     Vector2f ipoint = calcIntersectVector(a1,a2,b1,b2);
                     float dist_to_intersection = dist(ipoint - a1);
-
                     if(dist_to_intersection < closest_dist){
                         closest_dist = dist_to_intersection;
-                        closest_index = r;
-                        closest_reflector = {b1,b2};                    
-                    } 
-
+                        closest_index = i;
+                        closest_reflector = {b1,b2};
+                    }
                 }
-            }
-        }
 
+            }
+            
+        }
+        
         prevhit = closest_index;
         return closest_reflector;
+    }
+
+    unsigned reflectorsLeft(){
+        return maxref - reflectors.size();
     }
 };
 
@@ -171,6 +197,8 @@ public:
         level1.walls.push_back(topwall);
         level1.walls.push_back(botwall);
 
+        level1.maxref = 0;
+
         for(unsigned i = 0; i < level1.walls.size(); i++){
             level1.walls[i][0].color = Color::Red;
             level1.walls[i][1].color = Color::Red;
@@ -219,6 +247,10 @@ public:
                     mode = 4;
                     continue;
                 }
+                if(in == "reflectors"){
+                    mode = 5;
+                    continue;
+                }
 
                 std::stringstream ss(in);
 
@@ -264,6 +296,11 @@ public:
 
                     target.setPosition(first,second);
                     l.targets.push_back(target);
+                    continue;
+                }
+
+                if(mode == 5){
+                    ss >> l.maxref;
                     continue;
                 }                           
             }
