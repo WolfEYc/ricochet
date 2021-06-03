@@ -7,6 +7,7 @@ using namespace sf;
 using surface = std::pair<Vector2f,Vector2f>;
 
 Clock c;
+//big man
 
 unsigned screenx = 1280, screeny = 720, fps = 24, level = 0, curr = 0, wallBuild = 0, botmenu = 0, maxric = 69;
 bool rclicking = 0, shot = 0, showMenu = 0, mainMenu = 1, targetPlace = 0, editlevelname = 0, playing = 0, shift = 0;
