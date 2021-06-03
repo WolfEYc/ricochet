@@ -17,19 +17,21 @@ Text leveltext, reflectables_left;
 
 std::vector<RectangleShape> levelselector;
 std::vector<Text> selectorText;
-std::vector<bool> whoisHit;
+
 std::vector<std::vector<VertexArray>> shots; 
 Color cColor;
 leveld clev;
-Beam target(6);
-Beam beam;
-zone noplacezone;
+
 Transformer reflectable(4);
+Transformer noplacezone(4);
+Transformer target(6);
+Transformer beam(3);
+
 VertexArray newWall(LinesStrip,2);
 
-Texture buildText, backText, delWalltext, saveText, mainScreenText, buildnozonetext;
-Sprite buildwall, goBack, delWall, save, mainScreen, buildnozone;
-CircleShape red, green, blue;
+Texture backText, saveText, mainScreenText, buildText, delWalltext; 
+Sprite goBack, save, mainScreen, buildwall, delWall;
+
 
 RenderWindow window(VideoMode(screenx,screeny), "Ricochet", Style::Close);
 View view(window.getDefaultView());
@@ -84,10 +86,10 @@ void load(){
     reflectables_left.setString(std::to_string(clev.reflectorsLeft()));    
 }
 
-void init(){ //called once at startup
-    levels.initLevels(screenx,screeny);
+void init(){ //called once at startup    
+    levels.initLevels(screenx,screeny);    
     font.loadFromFile("resources/arial.ttf");
-    
+            
     initMenu();
     load();
     window.setFramerateLimit(fps);
@@ -103,7 +105,7 @@ void init(){ //called once at startup
     delWalltext.loadFromFile("resources/delWall.png");
     saveText.loadFromFile("resources/save.png");
     mainScreenText.loadFromFile("resources/logo.png");
-    buildnozonetext.loadFromFile("resources/nogo.png");
+    
 
     buildwall.setTexture(buildText);
     //placeTarget.setTexture(placeText);
@@ -128,12 +130,19 @@ void init(){ //called once at startup
     reflectables_left.setFont(font);
     reflectables_left.setCharacterSize(20);
     reflectables_left.setFillColor(Color::White);
-
-    beam.setPosition(Vector2f(335.f,45.f));
     reflectables_left.setOrigin(6.f,11.f);
+
+    
     reflectable.setPosition(Vector2f(screenx-45.f,45.f));
+    
     reflectables_left.setPosition(reflectable.getOrigin());
-    target.setPosition(Vector2f(125.f,25.f));
+    
+
+    noplacezone.setPosition(Vector2f(screenx-65.f,45.f));
+    noplacezone.setFillColor(darkred);
+
+    beam.setPosition(Vector2f(screenx-85.f,45.f));
+    target.setPosition(Vector2f(screenx-105.f,45.f));
 }
 
 void render(){
@@ -167,7 +176,7 @@ void render(){
     }
 
     if(!level){
-        for(Beam &i : clev.beams){
+        for(Transformer &i : clev.beams){
             if(i.selected)
                 i.setPosition(mousepos);
             if(i.rotating){
@@ -175,16 +184,16 @@ void render(){
             }
             i.draw(window);                   
         }
-        for(Beam &t : clev.targets){
+        for(Transformer &t : clev.targets){
             if(t.selected)
                 t.setPosition(mousepos);
             t.draw(window);
         }        
     }else{
-        for(Beam &i : clev.beams){            
+        for(Transformer &i : clev.beams){            
             i.draw(window);            
         }
-        for(Beam &i : clev.targets){            
+        for(Transformer &i : clev.targets){            
             i.drawShape(window);            
         }        
     }
@@ -282,7 +291,7 @@ void calcShots(){
             
             Vector2f collision_v = calcIntersectVector(a1,a2,b1,b2);
 
-            Color beamcolor = clev.beams[s].getColor();
+            Color beamcolor = clev.beams[s].getOutlineColor();
 
             for(Transformer &target : clev.targets){
                 if(target.hit(a1,collision_v)){                    
@@ -405,7 +414,7 @@ void eventHandler(){
                                 showMenu = 0;
                             }
                         }else{                        
-                            for(Beam &b : clev.beams){
+                            for(Transformer &b : clev.beams){
                                 if(b.isClicked(newpos)){
                                     if(shift)
                                         b.toggleColor(newpos);
@@ -428,7 +437,7 @@ void eventHandler(){
                                 showMenu = 0;
                             }
                         }else{
-                            for(Beam &b : clev.targets){
+                            for(Transformer &b : clev.targets){
                                 if(b.isClicked(newpos)){
                                     if(shift)
                                         b.toggleColor(newpos);
@@ -465,7 +474,7 @@ void eventHandler(){
             }
             if(Mouse::isButtonPressed(Mouse::Right)){
                 if(showMenu && !level){
-                    for(Beam &b : clev.beams){
+                    for(Transformer &b : clev.beams){
                         if(b.isClicked(newpos)){                            
                             b.rotating = 1;                            
                             showMenu = 0;
@@ -510,7 +519,7 @@ void eventHandler(){
         }
         if(e.type == Event::MouseButtonReleased){
             if(!Mouse::isButtonPressed(Mouse::Right)){                
-                for(Beam &b : clev.beams){
+                for(Transformer &b : clev.beams){
                     if(b.rotating){                            
                         b.rotating = 0;
                         showMenu = 1;                        
@@ -526,7 +535,7 @@ void eventHandler(){
                 }                              
             }
             if(!Mouse::isButtonPressed(Mouse::Left)){
-                for(Beam &b : clev.beams){
+                for(Transformer &b : clev.beams){
                     if(b.selected){
                         b.selected = 0;
                         showMenu = 1;
@@ -538,7 +547,7 @@ void eventHandler(){
                         showMenu = 1;
                     }
                 }
-                for(Beam &b : clev.targets){
+                for(Transformer &b : clev.targets){
                     if(b.selected){
                         b.selected = 0;
                         showMenu = 1;
@@ -554,7 +563,7 @@ void eventHandler(){
 }
 
 int main(){
-    init();
+    init();    
     
     while(window.isOpen()){
         eventHandler(); 

@@ -1,9 +1,11 @@
 #include <bits/stdc++.h>
 #include <filesystem>
 #include <SFML/Graphics.hpp>
-#include "beam.h"
-#include "zone.h"
+#include "transformer.h"
 using namespace sf;
+
+Color darkred = Color(50,0,0);
+
 
 //comment
 namespace fs = std::filesystem;
@@ -14,11 +16,11 @@ class leveld
 {
 public:
     std::string name;
-    std::vector<Beam> beams;
-    std::vector<Beam> targets;
+    std::vector<Transformer> beams;
+    std::vector<Transformer> targets;
     std::vector<VertexArray> walls;
     std::vector<Transformer> reflectors;
-    std::vector<zone> noplacezones;
+    std::vector<Transformer> noplacezones;
     float maxref;  
 
     leveld& operator=(leveld other) {
@@ -37,8 +39,8 @@ public:
         out << "name\n" << name.substr(0,20);
         out << "\nbeams\n";
         Color c;
-        for(Beam b : beams){        
-            c = b.getColor();
+        for(Transformer b : beams){        
+            c = b.getOutlineColor();
             out << c.r <<","<<c.g<<","<<c.b << " ";        
             printVector2f(b.getOrigin(),out);
             out << " ";
@@ -65,11 +67,11 @@ public:
 
         out << "noplacezones\n";
 
-        for(zone noplacezone : noplacezones){
+        for(Transformer noplacezone : noplacezones){
             printVector2f(noplacezone.getOrigin(),out);
             out << " ";
             printVector2f(noplacezone.getPivot(),out);
-            out << " " << noplacezone.getSize() << "\n";
+            out << " " << noplacezone.getRadius() << "\n";
         }        
     }
 
@@ -157,11 +159,13 @@ public:
 
     void cleanObjects(FloatRect bounds){
         for(unsigned i = 0; i<reflectors.size(); i++){
+            if(reflectors[i].selected)
+                continue;
             if(!bounds.contains(reflectors[i].getOrigin())){
                 reflectors.erase(reflectors.begin()+i);
                 return;
             }
-            for(zone noplace : noplacezones){
+            for(Transformer noplace : noplacezones){
                 if(noplace.contains(reflectors[i].getOrigin())){
                     reflectors.erase(reflectors.begin()+i);
                     return;
@@ -218,7 +222,12 @@ public:
         pivot.y-=10.f;
         pivot.x+=10.f;
 
-        level1.beams.push_back(Beam(origin,pivot,color));    
+        Transformer beam(3);
+        beam.setPosition(origin);
+        beam.setPosition(pivot);
+        beam.setOutlineColor(color);
+
+        level1.beams.push_back(beam);    
 
         VertexArray leftwall(LineStrip,2);
         leftwall[0].position = Vector2f(0.1f,0.1f);
@@ -250,7 +259,9 @@ public:
 
         levels.push_back(level1);
 
-        Beam target(6);
+        Transformer target(6);
+        Transformer noplacezone(4);
+        noplacezone.setFillColor(darkred);
         
         float first,second,third,fourth;
         char comma;
@@ -329,7 +340,11 @@ public:
 
                     pivot = Vector2f(first,second);
 
-                    l.beams.push_back(Beam(origin,pivot,color));
+                    beam.setPosition(origin);
+                    beam.setPosition(pivot);
+                    beam.setOutlineColor(color);
+
+                    l.beams.push_back(beam);
                     continue;
                 }
 
@@ -338,7 +353,7 @@ public:
 
                     color = Color(first,second,third);
 
-                    target.setColor(color);
+                    target.setOutlineColor(color);
                                        
                     ss >> first >> comma >> second;
 
@@ -357,10 +372,13 @@ public:
                     origin = Vector2f(first,second);
                     ss >> first >> comma >> second;
                     pivot = Vector2f(first,second);
-                    ss >> first;
-                    unsigned size = first;
-
-                    zone noplacezone(size,origin,pivot);
+                    float size;
+                    ss >> size;
+                    
+                    noplacezone.setPosition(origin);
+                    noplacezone.setPivot(pivot);
+                    noplacezone.setRadius(size);
+                    
                     l.noplacezones.push_back(noplacezone);
                     continue;
                 }                          
