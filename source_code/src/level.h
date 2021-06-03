@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <SFML/Graphics.hpp>
 #include "beam.h"
+#include "zone.h"
 using namespace sf;
 
 //comment
@@ -14,9 +15,10 @@ class leveld
 public:
     std::string name;
     std::vector<Beam> beams;
-    std::vector<RectangleShape> targets;
+    std::vector<Beam> targets;
     std::vector<VertexArray> walls;
     std::vector<Transformer> reflectors;
+    std::vector<zone> noplacezones;
     float maxref;  
 
     leveld& operator=(leveld other) {
@@ -24,6 +26,9 @@ public:
         beams = other.beams;
         targets = other.targets;
         walls = other.walls;
+        reflectors = other.reflectors;
+        noplacezones = other.noplacezones;
+        maxref = other.maxref;
         return *this;
     }
 
@@ -51,10 +56,21 @@ public:
 
         out << "targets\n";
         
-        for(RectangleShape target : targets){
-            printVector2f(target.getPosition(),out);
+        for(Transformer target : targets){
+            printVector2f(target.getOrigin(),out);
             out << std::endl;
-        }    
+        }
+
+        out << "reflectors\n" << reflectors.size();
+
+        out << "noplacezones\n";
+
+        for(zone noplacezone : noplacezones){
+            printVector2f(noplacezone.getOrigin(),out);
+            out << " ";
+            printVector2f(noplacezone.getPivot(),out);
+            out << " " << noplacezone.getSize() << "\n";
+        }        
     }
 
     surface firstCollision (Vector2f a1, Vector2f a2, int &prevhit){
@@ -138,6 +154,34 @@ public:
     unsigned reflectorsLeft(){
         return maxref - reflectors.size();
     }
+
+    void cleanObjects(FloatRect bounds){
+        for(unsigned i = 0; i<reflectors.size(); i++){
+            if(!bounds.contains(reflectors[i].getOrigin())){
+                reflectors.erase(reflectors.begin()+i);
+                return;
+            }
+            for(zone noplace : noplacezones){
+                if(noplace.contains(reflectors[i].getOrigin())){
+                    reflectors.erase(reflectors.begin()+i);
+                    return;
+                }
+            }
+        }
+        for(unsigned i = 0; i<beams.size(); i++){
+            if(!bounds.contains(beams[i].getOrigin())){
+                beams.erase(beams.begin()+i);
+                return;
+            }
+        }
+        for(unsigned i = 0; i<targets.size(); i++){
+            if(!bounds.contains(targets[i].getOrigin())){
+                targets.erase(targets.begin()+i);
+                return;
+            }
+        }
+        
+    }
 };
 
 class Levels {
@@ -206,10 +250,11 @@ public:
 
         levels.push_back(level1);
 
-        RectangleShape target;        
-        target.setSize(Vector2f(20.f,20.f));
-        target.setOrigin(10.f,10.f);
-        target.setOutlineThickness(3.f);
+        Beam target(6);
+        
+        float first,second,third,fourth;
+        char comma;
+        std::string in;
 
         for(auto &file : fs::directory_iterator("levels"))
             levelfiles.push_back(std::ifstream(file.path()));
@@ -220,11 +265,10 @@ public:
 
             l.walls = level1.walls;
 
-            std::string in;
+            
             unsigned mode = 0;
 
-            float first,second,third;
-            char comma;
+            
             while(getline(levelfiles[i],in)){
                 if(mode == 4){
                     l.name = in;
@@ -249,6 +293,10 @@ public:
                 }
                 if(in == "reflectors"){
                     mode = 5;
+                    continue;
+                }
+                if(in == "noplacezones"){
+                    mode = 6;
                     continue;
                 }
 
@@ -290,11 +338,11 @@ public:
 
                     color = Color(first,second,third);
 
-                    target.setOutlineColor(color);
+                    target.setColor(color);
                                        
                     ss >> first >> comma >> second;
 
-                    target.setPosition(first,second);
+                    target.setPosition(Vector2f(first,second));
                     l.targets.push_back(target);
                     continue;
                 }
@@ -302,7 +350,20 @@ public:
                 if(mode == 5){
                     ss >> l.maxref;
                     continue;
-                }                           
+                } 
+
+                if(mode == 6){                    
+                    ss >> first >> comma >> second;
+                    origin = Vector2f(first,second);
+                    ss >> first >> comma >> second;
+                    pivot = Vector2f(first,second);
+                    ss >> first;
+                    unsigned size = first;
+
+                    zone noplacezone(size,origin,pivot);
+                    l.noplacezones.push_back(noplacezone);
+                    continue;
+                }                          
             }
             levels.push_back(l);
         }

@@ -14,7 +14,7 @@ public:
         shape.setRadius(15.f);
         shape.setOrigin(15.f,15.f);
         shape.setOutlineColor(Color::White);
-        shape.setOutlineThickness(2.f);
+        shape.setOutlineThickness(3.f);
         shape.setFillColor(Color::Black);
         shape.rotate(0.0004f);
         selected = 0;
@@ -33,6 +33,14 @@ public:
 
     virtual void setColor(Color c){
         shape.setOutlineColor(c);        
+    }
+
+    void setFillColor(Color c){
+        shape.setFillColor(c);
+    }
+
+    Color getFillColor(){
+        return shape.getFillColor();
     }
 
     virtual void setPosition(Vector2f newpos){
@@ -68,6 +76,14 @@ public:
         return shape.getTransform().transformPoint(shape.getPoint(i));
     }
 
+    std::vector<Vector2f> getPoints(){
+        std::vector<Vector2f> pts;
+        for(unsigned i = 0; i < shape.getPointCount(); i++){
+            pts.push_back(shape.getPoint(i));
+        }
+        return pts;
+    }
+
     std::vector<surface> getWalls(){
         std::vector<surface> ws;
         unsigned i;
@@ -78,5 +94,14 @@ public:
         return ws;
     }
 
+    bool hit(Vector2f a1, Vector2f a2){
+        std::vector<surface> ws = getWalls();
+        for(surface s : ws){
+            if(segIntersectSeg({a1,a2},s)){
+                return true;
+            }
+        }
+        return false;
+    }
     
 };

@@ -26,6 +26,20 @@ public:
         setColor(Color::Black);
     }
 
+    Beam(float points) : Transformer(){
+        red.setRadius(3.6f);
+        red.setOrigin(3.6f,3.6f);
+        red.setOutlineThickness(2.f);
+        red.setFillColor(black);
+        red.setOutlineColor(r);
+        green = red;
+        blue = red;
+        green.setOutlineColor(g);
+        blue.setOutlineColor(b);
+        shape.setPointCount(points);
+        setColor(Color::Black);
+    }
+
     Beam(Vector2f origin, Vector2f pivot, Color beamcolor) : Beam() {
         setPosition(origin);
         setPivot(pivot);
@@ -100,6 +114,10 @@ public:
         window.draw(red);
         window.draw(green);
         window.draw(blue);
+    }
+
+    void drawShape(RenderWindow &window){
+        window.draw(shape);
     }
 
     Vector2f getPoint(unsigned i){

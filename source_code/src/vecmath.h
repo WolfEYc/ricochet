@@ -4,6 +4,10 @@ using namespace sf;
 
 #define PI 3.14159
 
+#define TWOPI PI*2.f;
+
+using surface = std::pair<Vector2f,Vector2f>;
+
 using l_equation = std::pair<float,float>;
 
 float dist(Vector2f v){
@@ -16,7 +20,7 @@ float dotprod(Vector2f first, Vector2f second){
 
 float nonzero(float num){
     if(num < 0.000001f && num > -0.000001f)
-        return 0.000001f;
+        return 0.00001f;
     return num;
 }
 
@@ -168,3 +172,53 @@ Vector2f midpoint(Vector2f p1, Vector2f p2){
     Vector2f sum = p1+p2;
     return Vector2f(sum.x*0.5,sum.y*0.5);
 }
+
+bool segIntersectSeg(surface a, surface b){
+    Vector2f intersection_vector = calcIntersectVector(a.first,a.second,b.first,b.second);
+    
+    float d1 = dist(intersection_vector - b.first);
+    float d2 = dist(intersection_vector - b.second);
+    float bfurthest = std::max(d1,d2);
+
+    d1 = dist(intersection_vector - a.first);
+    d2 = dist(intersection_vector - a.second);
+    float afurthest = std::max(d1,d2);
+    
+    float b_length = dist(b.second-b.first);
+    float a_length = dist(a.second-a.first);
+        
+    return afurthest < a_length && bfurthest < b_length;
+}
+
+double Angle2D(double x1, double y1, double x2, double y2)
+{
+   double dtheta,theta1,theta2;
+
+   theta1 = atan2(y1,x1);
+   theta2 = atan2(y2,x2);
+   dtheta = theta2 - theta1;
+   while (dtheta > PI)
+        dtheta -= TWOPI;
+   while (dtheta < -PI)
+        dtheta += TWOPI;
+
+   return(dtheta);
+}
+
+bool InsidePolygon(std::vector<Vector2f> Poly, int sides, Vector2f point)
+{
+	int i;
+	double angle=0;
+	Vector2f p1,p2;
+
+	for (i=0;i<sides;i++) {
+		p1.x = Poly[i].x - point.x;
+		p1.y = Poly[i].y - point.y;
+		p2.x = Poly[(i+1)%sides].x - point.x;
+		p2.y = Poly[(i+1)%sides].y - point.y;
+		angle += Angle2D(p1.x,p1.y,p2.x,p2.y);
+	}
+
+	return abs(angle) < PI ? 0 : 1;
+}
+
