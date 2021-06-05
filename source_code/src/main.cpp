@@ -7,11 +7,12 @@ using namespace sf;
 using surface = std::pair<Vector2f,Vector2f>;
 
 Clock c;
-
 unsigned screenx = 1280, screeny = 720, fps = 24, level = 0, curr = 0, wallBuild = 0, botmenu = 0, maxric = 69;
-bool rclicking = 0, shot = 0, showMenu = 0, mainMenu = 1, targetPlace = 0, editlevelname = 0, playing = 0, shift = 0;
+bool rclicking = 0, shot = 0, showMenu = 0, mainMenu = 1, targetPlace = 0, editlevelname = 0, playing = 0, shift = 0, ctrl = 0;
 Vector2f initclick;
-
+Vector2f two(2.f,2.f);
+Vector2f d_vec;
+Image windowimg;
 Font font;
 Text leveltext, reflectables_left;
 
@@ -137,18 +138,18 @@ void init(){ //called once at startup
     
     reflectables_left.setPosition(reflectable.getOrigin());
     
+    noplacezone.setPosition(Vector2f(screenx-85.f,45.f));
+    noplacezone.setFillColor(Color::Red);
+    
 
-    noplacezone.setPosition(Vector2f(screenx-65.f,45.f));
-    noplacezone.setFillColor(darkred);
-
-    beam.setPosition(Vector2f(screenx-85.f,45.f));
-    target.setPosition(Vector2f(screenx-105.f,45.f));
+    beam.setPosition(Vector2f(screenx-125.f,45.f));
+    target.setPosition(Vector2f(screenx-165.f,45.f));
 }
 
 void render(){
     window.clear();
 
-    clev.cleanObjects(bounds);
+    clev.cleanObjects(bounds,showMenu);
     
     if(mainMenu){
         window.setView(view);
@@ -165,23 +166,38 @@ void render(){
     windowoffset.y+=30;
     Vector2f mousepos = Vector2f(Mouse::getPosition()-windowoffset);
 
+    
+
+    for(Transformer &npzone : clev.noplacezones){
+        if(npzone.selected)
+            npzone.setPosition(mousepos);
+        if(npzone.rotating)
+            npzone.setPivot(mousepos);
+        if(npzone.resizing)
+            npzone.sizeTo(mousepos);
+        if(!level)
+            npzone.drawDull(window);
+        else
+            npzone.drawDullShape(window);
+    }
+
     for(unsigned i = 0; i < shots.size(); i++){        
         for(unsigned line = 0; line < shots[i].size(); line++){
-            window.draw(shots[i][line]);
-        } 
+            window.draw(shots[i][line],BlendAdd);
+        }
     }          
 
     for(unsigned i = 0; i < clev.walls.size(); i++){
         window.draw(clev.walls[i]);
+        
     }
 
     if(!level){
         for(Transformer &i : clev.beams){
             if(i.selected)
                 i.setPosition(mousepos);
-            if(i.rotating){
-                i.setPivot(mousepos);
-            }
+            if(i.rotating)
+                i.setPivot(mousepos);            
             i.draw(window);                   
         }
         for(Transformer &t : clev.targets){
@@ -204,7 +220,10 @@ void render(){
         if(r.rotating){
             r.setPivot(mousepos);
         }
-        r.draw(window);                   
+        if(!level)
+            r.draw(window);   
+        else
+            r.drawShape(window);                
     }
 
     if(showMenu){
@@ -233,9 +252,10 @@ void render(){
             window.draw(save);
             beam.draw(window);
             target.draw(window);  
-            reflectable.draw(window);  
+            reflectable.drawShape(window); 
+            noplacezone.drawDullShape(window); 
         }else if(clev.reflectorsLeft()){
-            reflectable.draw(window);            
+            reflectable.drawShape(window);           
         }
         window.draw(leveltext);
         window.draw(reflectables_left);
@@ -299,11 +319,23 @@ void calcShots(){
                 }
             }
 
-            VertexArray shot(LineStrip,2);
-            shot[0].position = a1;
+            VertexArray shot(TriangleStrip,4);
+            //beamcolor.a = 120/(s+1)+80;
+
+
+            d_vec = signsVector(a1,a2);
+                        
+            
+            shot[0].position = a1 - d_vec;            
             shot[0].color = beamcolor;
-            shot[1].position = collision_v;
+            shot[1].position = collision_v - d_vec;
             shot[1].color = beamcolor;
+            shot[2].position = a1 + d_vec;            
+
+            shot[3].position = collision_v + d_vec;
+            
+            shot[2].color = beamcolor;
+            shot[3].color = beamcolor;
 
             shots[s].push_back(shot);
 
@@ -319,6 +351,7 @@ void calcShots(){
 void eventHandler(){
     Event e;
     while(window.pollEvent(e)){
+        bool nomore = 0;
         if (e.type == Event::Closed)
             window.close();
 
@@ -412,6 +445,7 @@ void eventHandler(){
                                 shots = std::vector<std::vector<VertexArray>>(clev.beams.size());
                                 beam.selected = 0;
                                 showMenu = 0;
+                                nomore = 1;
                             }
                         }else{                        
                             for(Transformer &b : clev.beams){
@@ -420,13 +454,15 @@ void eventHandler(){
                                         b.toggleColor(newpos);
                                     else{
                                         b.selected = 1;
-                                        showMenu = 0;                                    
+                                        showMenu = 0;                                                                          
                                     }
-                                    break;
+                                    nomore = 1;
+                                    break;                                    
                                 }
                             }
                         }
-
+                        if(nomore)
+                            continue;
                         if(target.isClicked(newpos)){
                             if(shift){
                                 target.toggleColor(newpos);                                
@@ -435,6 +471,7 @@ void eventHandler(){
                                 clev.targets.push_back(target);
                                 target.selected = 0;
                                 showMenu = 0;
+                                nomore = 1;
                             }
                         }else{
                             for(Transformer &b : clev.targets){
@@ -445,13 +482,48 @@ void eventHandler(){
                                         b.selected = 1;
                                         showMenu = 0;                                    
                                     }
+                                    nomore = 1;
+                                    break;                                    
+                                }
+                            }
+                        }
+                        if(nomore)
+                            continue;
+                        if(noplacezone.isClicked(newpos)){
+                            if(shift){
+                                noplacezone.toggleFillColor(newpos);                                
+                            }else{
+                                noplacezone.selected = 1;
+                                clev.noplacezones.push_back(noplacezone);
+                                noplacezone.selected = 0;
+                                showMenu = 0;
+                            }
+                            nomore = 1;
+                        }else{
+                            for(Transformer &npzone : clev.noplacezones){
+                                if(npzone.isClicked(newpos)){
+                                    if(shift){
+                                        npzone.toggleFillColor(newpos);                                        
+                                    }else
+                                    if(ctrl){
+                                        npzone.resizing = 1;
+                                        showMenu = 0;
+                                    }
+                                    else{
+                                        npzone.selected = 1;
+                                        showMenu = 0;                                    
+                                    }
+                                    nomore = 1;
                                     break;
                                 }
                             }
                         }
+                        if(nomore)
+                            continue;
+                        
                     }
-                if(reflectable.isClicked(newpos)){
-                        if(!level || clev.reflectorsLeft()){
+                    if(reflectable.isClicked(newpos)){
+                        if(!level || clev.reflectorsLeft()){                            
                             reflectable.selected = 1;
                             clev.reflectors.push_back(reflectable);
                             reflectable.selected = 0;
@@ -461,27 +533,52 @@ void eventHandler(){
                             }else{
                                 reflectables_left.setString(std::to_string(clev.reflectorsLeft()));
                             }
-                        }                            
+                            nomore = 1;
+                        }
+                        if(nomore)
+                            continue;                            
                     }
                 }
+
                 for(Transformer &r : clev.reflectors){
                     if(r.isClicked(newpos)){
-                        r.selected = 1;
-                        showMenu = 0;
-                        break;
+                        if(shift)
+                            r.toggleColor(newpos);
+                        else{
+                            r.selected = 1;
+                            showMenu = 0;
+                            nomore = 1;
+                            break;   
+                        }                     
                     }
-                }                
+                }  
+                if(nomore)
+                    continue;             
             }
             if(Mouse::isButtonPressed(Mouse::Right)){
+                bool donezo = 0;
                 if(showMenu && !level){
                     for(Transformer &b : clev.beams){
                         if(b.isClicked(newpos)){                            
                             b.rotating = 1;                            
                             showMenu = 0;
+                            donezo = 1;
+                            break;
+                        }
+                    }
+                    if(donezo)
+                        continue;
+                    for(Transformer &n : clev.noplacezones){
+                        if(n.isClicked(newpos)){                            
+                            n.rotating = 1;                            
+                            showMenu = 0;
+                            donezo = 1;
                             break;
                         }
                     }
                 }
+                if(donezo)
+                    continue;
                 for(Transformer &r : clev.reflectors){
                     if(r.isClicked(newpos)){                            
                         r.rotating = 1;                        
@@ -508,12 +605,18 @@ void eventHandler(){
                 case Keyboard::LShift:
                     shift = 1;
                     break;
+                case Keyboard::LControl:
+                    ctrl = 1;
+                    break;
             }
         }
         if(e.type == Event::KeyReleased){
             switch(e.key.code){
                 case Keyboard::LShift:
                     shift = 0;
+                    break;
+                case Keyboard::LControl:
+                    ctrl = 0;
                     break;
             }
         }
@@ -532,7 +635,14 @@ void eventHandler(){
                         showMenu = 1;
                         break;
                     }
-                }                              
+                }
+                for(Transformer &n : clev.noplacezones){
+                    if(n.rotating){                            
+                        n.rotating = 0;                        
+                        showMenu = 1;
+                        break;
+                    }
+                }                             
             }
             if(!Mouse::isButtonPressed(Mouse::Left)){
                 for(Transformer &b : clev.beams){
@@ -551,6 +661,18 @@ void eventHandler(){
                     if(b.selected){
                         b.selected = 0;
                         showMenu = 1;
+                    }
+                }
+                for(Transformer &n : clev.noplacezones){
+                    if(n.selected){                            
+                        n.selected = 0;                        
+                        showMenu = 1;
+                        break;
+                    }
+                    if(n.resizing){
+                        n.resizing = 0;
+                        showMenu = 1;
+                        break;
                     }
                 }
             }

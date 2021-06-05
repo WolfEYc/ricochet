@@ -15,7 +15,7 @@ class Transformer{
 private:
     CircleShape shape,red,green,blue;
 public:
-    bool selected, rotating;
+    bool selected, rotating, resizing;
     Transformer(unsigned points){
         shape.setPointCount(points);
         shape.setRadius(15.f);
@@ -26,6 +26,7 @@ public:
         shape.rotate(0.0004f);
         selected = 0;
         rotating = 0;
+        resizing = 0;
         red.setRadius(3.6f);
         red.setOrigin(3.6f,3.6f);
         red.setOutlineThickness(2.f);
@@ -45,8 +46,23 @@ public:
         return shape.getFillColor();
     }
 
+    //checks if point is in polygon
+    bool contains(Vector2f point){
+        Vector2f farpoint(9999.f,9999.f);        
+        unsigned count = 0;
+        
+        std::vector<surface> ws = getWalls();
+        for(surface s : ws){
+            if(segIntersectSeg({point,farpoint},s)){
+                count++;
+            }
+        }
+        return (count % 2);
+    }
+    
+
     bool isClicked(Vector2f mousepos){
-        return shape.getGlobalBounds().contains(mousepos);
+        return Transformer::contains(mousepos);
     }
 
     Color getOutlineColor(){
@@ -95,16 +111,13 @@ public:
     //yeah it do thing
     void setRadius(float size){
         shape.setRadius(size);
+        shape.setOrigin(getRadius(),getRadius());
+        setPosition(shape.getPosition());
     }
 
     //remember its not actually a circle
     float getRadius() const{
         return shape.getRadius();
-    }
-
-    //checks if point is in polygon
-    bool contains(Vector2f point){
-        return InsidePolygon(getPoints(),shape.getPointCount(),point);
     }
 
     void setOutlineColor(Color c){ 
@@ -119,7 +132,12 @@ public:
 
     void setPosition(Vector2f newpos){
         shape.setPosition(newpos);
-        Vector2f top = getPoint(0), right = getPoint(1), left = getPoint(2);
+        Vector2f top, right, left;
+        if(shape.getPointCount()>4)
+            top = getPoint(0), right = getPoint(2), left = getPoint(4);
+        else
+            top = getPoint(0), right = getPoint(1), left = getPoint(2);
+
         red.setPosition(midpoint(top,getOrigin()));
         blue.setPosition(midpoint(right,getOrigin()));
         green.setPosition(midpoint(left,getOrigin()));
@@ -129,13 +147,10 @@ public:
     void setPivot(Vector2f pivot){
         float angle = rotationAngle(getOrigin(),pivot);
         shape.setRotation(angle);   
-        Vector2f top = getPoint(0), right = getPoint(1), left = getPoint(2);
-        red.setPosition(midpoint(top,getOrigin()));
-        blue.setPosition(midpoint(right,getOrigin()));
-        green.setPosition(midpoint(left,getOrigin()));      
+        setPosition(getOrigin());     
     }
     
-    //toggles color in response to mousepress
+    //toggles Fill color in response to mousepress
     void toggleColor(Vector2f mousepos){
         if(red.getGlobalBounds().contains(mousepos)){
             if(red.getFillColor() == black){
@@ -173,6 +188,44 @@ public:
         } 
     }
 
+    //toggles Fill color in response to mousepress
+    void toggleFillColor(Vector2f mousepos){
+        if(red.getGlobalBounds().contains(mousepos)){
+            if(red.getFillColor() == black){
+                red.setFillColor(r);
+                shape.setFillColor(shape.getFillColor()+r);
+            }else{
+                red.setFillColor(black);
+                Color outcol = shape.getFillColor();
+                outcol.r=0;
+                shape.setFillColor(outcol);
+            }            
+        }else
+        if(green.getGlobalBounds().contains(mousepos)){
+            if(green.getFillColor() == black){
+                green.setFillColor(g);
+                shape.setFillColor(shape.getFillColor()+g);
+            }else{
+                green.setFillColor(black);
+                Color outcol = shape.getFillColor();
+                outcol.g=0;
+                shape.setFillColor(outcol);
+            }
+            
+        }else
+        if(blue.getGlobalBounds().contains(mousepos)){
+            if(blue.getFillColor() == black){
+                blue.setFillColor(b);
+                shape.setFillColor(shape.getFillColor()+b);
+            }else{
+                blue.setFillColor(black);
+                Color outcol = shape.getFillColor();
+                outcol.b=0;
+                shape.setFillColor(outcol);                
+            }            
+        } 
+    }
+
     //Draws with color editing visible
     void draw(RenderWindow &window){
         window.draw(shape);
@@ -186,4 +239,27 @@ public:
         window.draw(shape);
     }
     
+    void sizeTo(Vector2f mousepos){
+        float distance = dist(mousepos - getOrigin());
+        setRadius(distance);
+    }
+
+    void drawDull(RenderWindow &window){
+        drawDullShape(window);
+        window.draw(red);
+        window.draw(green);
+        window.draw(blue);
+    }
+
+    void drawDullShape(RenderWindow &window){
+        Color fillcol = shape.getFillColor();
+        shape.setOutlineThickness(0.f);
+        Color original = fillcol;
+        fillcol.r = std::clamp(fillcol.r/8,0,255);
+        fillcol.b = std::clamp(fillcol.b/8,0,255);
+        fillcol.g = std::clamp(fillcol.g/8,0,255);
+        shape.setFillColor(fillcol);
+        window.draw(shape);
+        shape.setFillColor(original);
+    }
 };

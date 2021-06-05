@@ -157,17 +157,19 @@ public:
         return maxref - reflectors.size();
     }
 
-    void cleanObjects(FloatRect bounds){
+    void cleanObjects(FloatRect bounds,bool &showMenu){
         for(unsigned i = 0; i<reflectors.size(); i++){
             if(reflectors[i].selected)
                 continue;
             if(!bounds.contains(reflectors[i].getOrigin())){
                 reflectors.erase(reflectors.begin()+i);
+                showMenu = 1;
                 return;
             }
             for(Transformer noplace : noplacezones){
                 if(noplace.contains(reflectors[i].getOrigin())){
                     reflectors.erase(reflectors.begin()+i);
+                    showMenu = 1;
                     return;
                 }
             }
@@ -175,12 +177,14 @@ public:
         for(unsigned i = 0; i<beams.size(); i++){
             if(!bounds.contains(beams[i].getOrigin())){
                 beams.erase(beams.begin()+i);
+                showMenu = 1;
                 return;
             }
         }
         for(unsigned i = 0; i<targets.size(); i++){
             if(!bounds.contains(targets[i].getOrigin())){
                 targets.erase(targets.begin()+i);
+                showMenu = 1;
                 return;
             }
         }

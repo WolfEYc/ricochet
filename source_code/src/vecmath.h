@@ -19,8 +19,8 @@ float dotprod(Vector2f first, Vector2f second){
 }
 
 float nonzero(float num){
-    if(num < 0.000001f && num > -0.000001f)
-        return 0.00001f;
+    if(num < 0.00001f && num > -0.00001f)
+        return 0.0001f;
     return num;
 }
 
@@ -190,35 +190,15 @@ bool segIntersectSeg(surface a, surface b){
     return afurthest < a_length && bfurthest < b_length;
 }
 
-double Angle2D(double x1, double y1, double x2, double y2)
-{
-   double dtheta,theta1,theta2;
-
-   theta1 = atan2(y1,x1);
-   theta2 = atan2(y2,x2);
-   dtheta = theta2 - theta1;
-   while (dtheta > PI)
-        dtheta -= TWOPI;
-   while (dtheta < -PI)
-        dtheta += TWOPI;
-
-   return(dtheta);
+Vector2f signsVector(Vector2f origin, Vector2f pivot){
+    Vector2f d_vec = pivot - origin;
+    d_vec.x = d_vec.x > 0 ? 1 : -1;
+    d_vec.y = d_vec.y > 0 ? -1 : 1;
+    return d_vec;
 }
 
-bool InsidePolygon(std::vector<Vector2f> Poly, int sides, Vector2f point)
-{
-	int i;
-	double angle=0;
-	Vector2f p1,p2;
-
-	for (i=0;i<sides;i++) {
-		p1.x = Poly[i].x - point.x;
-		p1.y = Poly[i].y - point.y;
-		p2.x = Poly[(i+1)%sides].x - point.x;
-		p2.y = Poly[(i+1)%sides].y - point.y;
-		angle += Angle2D(p1.x,p1.y,p2.x,p2.y);
-	}
-
-	return abs(angle) < PI ? 0 : 1;
+Vector2f signVector(Vector2f signs, Vector2f point){
+    point.x*=signs.x;
+    point.y*=signs.y;
+    return point;
 }
-
