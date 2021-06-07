@@ -6,7 +6,6 @@ using namespace sf;
 
 Color darkred = Color(50,0,0);
 
-
 //comment
 namespace fs = std::filesystem;
 
@@ -75,7 +74,7 @@ public:
         }        
     }
 
-    surface firstCollision (Vector2f a1, Vector2f a2, int &prevhit){
+    surface firstCollision (Vector2f a1, Vector2f a2, int &prevhit, Color beamcolor){
         float closest_dist = 9999.f;
         int closest_index = 69;
         surface closest_reflector;
@@ -123,11 +122,21 @@ public:
             }
         }
 
-        for(unsigned i = 0; i < reflectors.size(); i ++){
-            if(i == prevhit)
+        for(unsigned i = 0; i < reflectors.size(); i++){            
+            if(int(i) == prevhit)
                 continue;
 
-            std::vector<surface> reflectablewalls = reflectors[i].getWalls();            
+            Color refColor = reflectors[i].getOutlineColor();
+
+            if((beamcolor.r == 255 && refColor.r != 255) ||
+               (beamcolor.b == 255 && refColor.b != 255) ||
+               (beamcolor.g == 255 && refColor.g != 255))
+                continue;
+
+            
+               
+
+            std::vector<surface> reflectablewalls = reflectors[i].getWalls();
 
             for(unsigned r = 0; r < reflectablewalls.size(); r++){
                 surface refable = reflectablewalls[r];
@@ -184,6 +193,13 @@ public:
         for(unsigned i = 0; i<targets.size(); i++){
             if(!bounds.contains(targets[i].getOrigin())){
                 targets.erase(targets.begin()+i);
+                showMenu = 1;
+                return;
+            }
+        }
+        for(unsigned i = 0; i<noplacezones.size(); i++){
+            if(!bounds.contains(noplacezones[i].getOrigin())){
+                noplacezones.erase(noplacezones.begin()+i);
                 showMenu = 1;
                 return;
             }
@@ -267,7 +283,7 @@ public:
         Transformer noplacezone(4);
         noplacezone.setFillColor(darkred);
         
-        float first,second,third,fourth;
+        float first,second,third;
         char comma;
         std::string in;
 

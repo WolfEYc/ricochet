@@ -12,7 +12,7 @@ bool rclicking = 0, shot = 0, showMenu = 0, mainMenu = 1, targetPlace = 0, editl
 Vector2f initclick;
 Vector2f two(2.f,2.f);
 Vector2f d_vec;
-Image windowimg;
+
 Font font;
 Text leveltext, reflectables_left;
 
@@ -33,8 +33,8 @@ VertexArray newWall(LinesStrip,2);
 Texture backText, saveText, mainScreenText, buildText, delWalltext; 
 Sprite goBack, save, mainScreen, buildwall, delWall;
 
-
 RenderWindow window(VideoMode(screenx,screeny), "Ricochet", Style::Close);
+
 View view(window.getDefaultView());
 
 FloatRect bounds;
@@ -76,7 +76,7 @@ void load(){
     clev = levels.getLevel(level);
     
     if(!level)
-        leveltext.setPosition(Vector2f(375.f,25.f));
+        leveltext.setPosition(Vector2f(225.f,25.f));
     else{
         leveltext.setPosition(Vector2f(75.f,25.f));
         playing = 1;
@@ -87,7 +87,7 @@ void load(){
     reflectables_left.setString(std::to_string(clev.reflectorsLeft()));    
 }
 
-void init(){ //called once at startup    
+void init(){//called once at startup
     levels.initLevels(screenx,screeny);    
     font.loadFromFile("resources/arial.ttf");
             
@@ -120,9 +120,9 @@ void init(){ //called once at startup
     goBack.setPosition(Vector2f(25.f,25.f));
     buildwall.setPosition(Vector2f(75.f,25.f));
     //placeTarget.setPosition(Vector2f(125.f,25.f));
-    delWall.setPosition(Vector2f(175.f,25.f));
+    delWall.setPosition(Vector2f(125.f,25.f));
     //delTarget.setPosition(Vector2f(225.f,25.f));
-    save.setPosition(Vector2f(275.f,25.f));
+    save.setPosition(Vector2f(175.f,25.f));
     mainScreen.setPosition(Vector2f(view.getCenter().x,100.f)); 
 
     leveltext.setFont(font);
@@ -166,8 +166,6 @@ void render(){
     windowoffset.y+=30;
     Vector2f mousepos = Vector2f(Mouse::getPosition()-windowoffset);
 
-    
-
     for(Transformer &npzone : clev.noplacezones){
         if(npzone.selected)
             npzone.setPosition(mousepos);
@@ -183,7 +181,7 @@ void render(){
 
     for(unsigned i = 0; i < shots.size(); i++){        
         for(unsigned line = 0; line < shots[i].size(); line++){
-            window.draw(shots[i][line],BlendAdd);
+            window.draw(shots[i][line],BlendAdd); 
         }
     }          
 
@@ -204,8 +202,10 @@ void render(){
             if(t.selected)
                 t.setPosition(mousepos);
             t.draw(window);
-        }        
+        }
+        reflectables_left.setString(std::to_string(clev.reflectors.size()));                 
     }else{
+        reflectables_left.setString(std::to_string(clev.reflectorsLeft()));
         for(Transformer &i : clev.beams){            
             i.draw(window);            
         }
@@ -283,67 +283,94 @@ void calcShots(){
     }
 
     for(unsigned s = 0; s < clev.beams.size(); s++){
-        a1 = clev.beams[s].getOrigin();
-        a2 = clev.beams[s].getPivot();
-
         shots[s].clear();
-
-        int hit = 69;
-        bool done = 0;
-        unsigned count = 0;
-
-        while(!done && count != maxric){
-
-            hitsurface = clev.firstCollision(a1,a2,hit);
-
-            //std::cout << wallhit << std::endl;
-
-            if(hit == 69){
-                std::cout << "no collision with anything !!!\n";
-                break;
-            }
-
-            if(hit < 0)
-                done = 1;
-
-            
-            b1 = hitsurface.first, b2 = hitsurface.second;
-            
-            Vector2f collision_v = calcIntersectVector(a1,a2,b1,b2);
+        
+        for(unsigned c = 0; c < 3; c++){            
 
             Color beamcolor = clev.beams[s].getOutlineColor();
 
-            for(Transformer &target : clev.targets){
-                if(target.hit(a1,collision_v)){                    
-                    target.setFillColor(target.getFillColor()+beamcolor);
-                }
+            
+            if(!c){
+                if(beamcolor.r == 255)
+                    beamcolor = Color::Red;
+                else
+                    continue;
+            }
+            else if(c == 1){
+                if(beamcolor.g == 255)
+                    beamcolor = Color::Green;
+                else
+                    continue;
+            }
+            else if(c == 2){
+                if(beamcolor.b == 255)
+                    beamcolor = Color::Blue;
+                else
+                    continue;
             }
 
-            VertexArray shot(TriangleStrip,4);
-            //beamcolor.a = 120/(s+1)+80;
+            a1 = clev.beams[s].getOrigin();
+            a2 = clev.beams[s].getPivot();
 
-
-            d_vec = signsVector(a1,a2);
-                        
             
-            shot[0].position = a1 - d_vec;            
-            shot[0].color = beamcolor;
-            shot[1].position = collision_v - d_vec;
-            shot[1].color = beamcolor;
-            shot[2].position = a1 + d_vec;            
 
-            shot[3].position = collision_v + d_vec;
-            
-            shot[2].color = beamcolor;
-            shot[3].color = beamcolor;
+            int hit = 69;
+            bool done = 0;
+            unsigned count = 0;
 
-            shots[s].push_back(shot);
+            while(!done && count != maxric){
 
-            a2 = newPivot(a1,collision_v,b1,b2);
+                hitsurface = clev.firstCollision(a1,a2,hit,beamcolor);
 
-            a1 = collision_v;
+                //std::cout << wallhit << std::endl;
 
-            count++;
+                if(hit == 69){
+                    std::cout << "no collision with anything !!!\n";
+                    break;
+                }
+
+                if(hit < 0)
+                    done = 1;
+
+                
+                b1 = hitsurface.first, b2 = hitsurface.second;
+                
+                Vector2f collision_v = calcIntersectVector(a1,a2,b1,b2);
+
+                
+
+                for(Transformer &target : clev.targets){
+                    if(target.hit(a1,collision_v)){                    
+                        target.setFillColor(target.getFillColor()+beamcolor);
+                    }
+                }
+
+                VertexArray shot(TriangleStrip,4);
+                //beamcolor.a = 120/(s+1)+80;
+
+
+                d_vec = signsVector(a1,a2);
+                            
+                
+                shot[0].position = a1 - d_vec;            
+                shot[0].color = beamcolor;
+                shot[1].position = collision_v - d_vec;
+                shot[1].color = beamcolor;
+                shot[2].position = a1 + d_vec;            
+
+                shot[3].position = collision_v + d_vec;
+                
+                shot[2].color = beamcolor;
+                shot[3].color = beamcolor;
+                
+                shots[s].push_back(shot);
+
+                a2 = newPivot(a1,collision_v,b1,b2);
+
+                a1 = collision_v;
+
+                count++;
+            }
         }
     }
 }
@@ -527,12 +554,7 @@ void eventHandler(){
                             reflectable.selected = 1;
                             clev.reflectors.push_back(reflectable);
                             reflectable.selected = 0;
-                            showMenu = 0;
-                            if(!level){
-                                reflectables_left.setString(std::to_string(clev.reflectors.size()));
-                            }else{
-                                reflectables_left.setString(std::to_string(clev.reflectorsLeft()));
-                            }
+                            showMenu = 0;                            
                             nomore = 1;
                         }
                         if(nomore)
@@ -608,6 +630,8 @@ void eventHandler(){
                 case Keyboard::LControl:
                     ctrl = 1;
                     break;
+                default:
+                    break;
             }
         }
         if(e.type == Event::KeyReleased){
@@ -617,6 +641,8 @@ void eventHandler(){
                     break;
                 case Keyboard::LControl:
                     ctrl = 0;
+                    break;
+                default:
                     break;
             }
         }
@@ -700,5 +726,6 @@ int main(){
         if(curr==fps)
             curr = 0;
     }
+    
     return 0;
 }

@@ -41,7 +41,7 @@ void printVector2f(Vector2f v, std::ofstream &out){
 }
 
 bool sameSigns(Vector2f p1, Vector2f p2){
-    return (p1.x < 0 == p2.x < 0) && (p1.y < 0 == p2.y < 0);
+    return ((p1.x < 0) == (p2.x < 0)) && ((p1.y < 0) == (p2.y < 0));
 }
 
 l_equation eqFrom2Pts(Vector2f p1, Vector2f p2){
