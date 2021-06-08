@@ -312,8 +312,6 @@ void calcShots(){
             a1 = clev.beams[s].getOrigin();
             a2 = clev.beams[s].getPivot();
 
-            
-
             int hit = 69;
             bool done = 0;
             unsigned count = 0;
@@ -336,8 +334,6 @@ void calcShots(){
                 b1 = hitsurface.first, b2 = hitsurface.second;
                 
                 Vector2f collision_v = calcIntersectVector(a1,a2,b1,b2);
-
-                
 
                 for(Transformer &target : clev.targets){
                     if(target.hit(a1,collision_v)){                    
@@ -434,10 +430,35 @@ void eventHandler(){
                     }
                 }else
                 if(showMenu){
+                    if(reflectable.isClicked(newpos)){
+                        if(!level || clev.reflectorsLeft()){                            
+                            reflectable.selected = 1;
+                            clev.reflectors.push_back(reflectable);
+                            reflectable.selected = 0;
+                            showMenu = 0;                            
+                            nomore = 1;
+                        }
+                        if(nomore)
+                            continue;                            
+                    }
                     if(goBack.getGlobalBounds().contains(newpos)){
                         mainMenu = 1;
                         //std::cout << "going back" << std::endl;
                     }
+                    for(Transformer &r : clev.reflectors){
+                        if(r.isClicked(newpos)){
+                            if(shift)
+                                r.toggleColor(newpos);
+                            else{
+                                r.selected = 1;
+                                showMenu = 0;
+                                nomore = 1;
+                                break;   
+                            }                     
+                        }
+                    }
+                    if(nomore)
+                        continue; 
                     if(!level){
 
                         if(buildwall.getGlobalBounds().contains(newpos)){
@@ -549,33 +570,12 @@ void eventHandler(){
                             continue;
                         
                     }
-                    if(reflectable.isClicked(newpos)){
-                        if(!level || clev.reflectorsLeft()){                            
-                            reflectable.selected = 1;
-                            clev.reflectors.push_back(reflectable);
-                            reflectable.selected = 0;
-                            showMenu = 0;                            
-                            nomore = 1;
-                        }
-                        if(nomore)
-                            continue;                            
-                    }
+                    
+                    
                 }
+                
 
-                for(Transformer &r : clev.reflectors){
-                    if(r.isClicked(newpos)){
-                        if(shift)
-                            r.toggleColor(newpos);
-                        else{
-                            r.selected = 1;
-                            showMenu = 0;
-                            nomore = 1;
-                            break;   
-                        }                     
-                    }
-                }  
-                if(nomore)
-                    continue;             
+                            
             }
             if(Mouse::isButtonPressed(Mouse::Right)){
                 bool donezo = 0;

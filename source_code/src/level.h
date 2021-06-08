@@ -38,16 +38,16 @@ public:
         out << "name\n" << name.substr(0,20);
         out << "\nbeams\n";
         Color c;
-        for(Transformer b : beams){        
+        for(Transformer b : beams){       
             c = b.getOutlineColor();
-            out << c.r <<","<<c.g<<","<<c.b << " ";        
+            out << std::to_string(c.r) <<","<<std::to_string(c.g)<<","<<std::to_string(c.b) << " ";   
             printVector2f(b.getOrigin(),out);
             out << " ";
             printVector2f(b.getPivot(),out);
             out << std::endl;
         }
         
-        out << "\nwalls\n";
+        out << "walls\n";
         for(VertexArray wall: walls){
             printVector2f(wall[0].position,out);
             out << " ";
@@ -58,15 +58,19 @@ public:
         out << "targets\n";
         
         for(Transformer target : targets){
+            c = target.getOutlineColor();
+            out << std::to_string(c.r) <<","<<std::to_string(c.g)<<","<<std::to_string(c.b) << " ";
             printVector2f(target.getOrigin(),out);
             out << std::endl;
         }
 
         out << "reflectors\n" << reflectors.size();
 
-        out << "noplacezones\n";
+        out << "\nnoplacezones\n";
 
         for(Transformer noplacezone : noplacezones){
+            c = noplacezone.getFillColor();
+            out << std::to_string(c.r) <<","<<std::to_string(c.g)<<","<<std::to_string(c.b) << " ";  
             printVector2f(noplacezone.getOrigin(),out);
             out << " ";
             printVector2f(noplacezone.getPivot(),out);
@@ -167,7 +171,7 @@ public:
     }
 
     void cleanObjects(FloatRect bounds,bool &showMenu){
-        for(unsigned i = 0; i<reflectors.size(); i++){
+        for(unsigned i = 0; i < reflectors.size(); i++){
             if(reflectors[i].selected)
                 continue;
             if(!bounds.contains(reflectors[i].getOrigin())){
@@ -175,8 +179,25 @@ public:
                 showMenu = 1;
                 return;
             }
+            Color refColor = reflectors[i].getOutlineColor();
+            
             for(Transformer noplace : noplacezones){
-                if(noplace.contains(reflectors[i].getOrigin())){
+                Color noColor = noplace.getFillColor();
+
+                if(((refColor.r == 255 && noColor.r == 255)||
+                (refColor.g == 255 && noColor.g == 255)||
+                (refColor.b == 255 && noColor.b == 255))&&
+                noplace.contains(reflectors[i].getOrigin())){
+                    reflectors.erase(reflectors.begin()+i);
+                    showMenu = 1;
+                    return;
+                }
+            }
+            for(unsigned j = 0; j < reflectors.size(); j++){
+                if(j==i || reflectors[j].selected)                
+                    continue;
+                float distance = dist(reflectors[j].getOrigin()-reflectors[i].getOrigin());
+                if(distance < reflectors[i].getRadius()*2.f){
                     reflectors.erase(reflectors.begin()+i);
                     showMenu = 1;
                     return;
@@ -217,7 +238,7 @@ public:
         return levels[i];
     }
     
-    size_t size (){
+    size_t size(){
         return levels.size();
     }
 
@@ -281,7 +302,7 @@ public:
 
         Transformer target(6);
         Transformer noplacezone(4);
-        noplacezone.setFillColor(darkred);
+       
         
         float first,second,third;
         char comma;
@@ -293,13 +314,10 @@ public:
         for(unsigned i = 0; i < levelfiles.size(); i++){
             //each level (file)
             leveld l;
-
             l.walls = level1.walls;
 
-            
             unsigned mode = 0;
 
-            
             while(getline(levelfiles[i],in)){
                 if(mode == 4){
                     l.name = in;
@@ -347,27 +365,6 @@ public:
                     continue;
                 }
 
-                if(mode == 3){
-                    ss >> first >> comma >> second >> comma >> third;
-
-                    color = Color(first,second,third);
-
-                    ss >> first >> comma >> second;
-
-                    origin = Vector2f(first,second);
-        
-                    ss >> first >> comma >> second;     
-
-                    pivot = Vector2f(first,second);
-
-                    beam.setPosition(origin);
-                    beam.setPosition(pivot);
-                    beam.setOutlineColor(color);
-
-                    l.beams.push_back(beam);
-                    continue;
-                }
-
                 if(mode == 2){
                     ss >> first >> comma >> second >> comma >> third;
 
@@ -382,12 +379,37 @@ public:
                     continue;
                 }
 
+                if(mode == 3){
+                    ss >> first >> comma >> second >> comma >> third;
+
+                    color = Color(first,second,third);
+
+                    ss >> first >> comma >> second;
+
+                    origin = Vector2f(first,second);
+        
+                    ss >> first >> comma >> second;   
+
+                    pivot = Vector2f(first,second);
+
+                    beam.setPosition(origin);
+                    beam.setPivot(pivot);
+                    beam.setOutlineColor(color);
+
+                    l.beams.push_back(beam);
+                    continue;
+                }
+
                 if(mode == 5){
                     ss >> l.maxref;
                     continue;
-                } 
+                }
 
-                if(mode == 6){                    
+                if(mode == 6){
+                    ss >> first >> comma >> second >> comma >> third;
+
+                    color = Color(first,second,third);
+
                     ss >> first >> comma >> second;
                     origin = Vector2f(first,second);
                     ss >> first >> comma >> second;
@@ -398,6 +420,7 @@ public:
                     noplacezone.setPosition(origin);
                     noplacezone.setPivot(pivot);
                     noplacezone.setRadius(size);
+                    noplacezone.setFillColor(color);
                     
                     l.noplacezones.push_back(noplacezone);
                     continue;
