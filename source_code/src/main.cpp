@@ -220,10 +220,9 @@ void render(){
         if(r.rotating){
             r.setPivot(mousepos);
         }
-        if(!level)
-            r.draw(window);   
-        else
-            r.drawShape(window);                
+        
+        r.draw(window);   
+                       
     }
 
     if(showMenu){
